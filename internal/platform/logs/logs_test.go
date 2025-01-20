@@ -171,10 +171,6 @@ func TestQueryLogs(t *testing.T) {
 		{name: "GoodToken", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, want: expectedLogs, err: nil},
 	}
 
-	GetQueryUrl = func(e string) (string, error) {
-		return server.URL, nil
-	}
-
 	for _, tt := range testCases {
 
 		t.Run(tt.name, func(t *testing.T) {
