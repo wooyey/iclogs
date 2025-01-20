@@ -126,7 +126,6 @@ func mockServer() *httptest.Server {
 		}
 
 		w.WriteHeader(200)
-		// result := fmt.Sprintf("Query: %+v", q)
 		fmt.Fprint(w, respResults)
 	}
 

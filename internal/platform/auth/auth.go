@@ -61,14 +61,14 @@ func GetToken(endpoint, key string) (Token, error) {
 	if resp.StatusCode != 200 {
 		e := Error{}
 		if err = json.NewDecoder(resp.Body).Decode(&e); err != nil {
-			return token, fmt.Errorf("Cannot decode message from JSON: %w", err)
+			return token, fmt.Errorf("Cannot decode error message with status %d from JSON: %w", resp.StatusCode, err)
 		}
 		return token, GetTokenError{resp.StatusCode, e.Message, e.Details}
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&token)
 	if err != nil {
-		return token, fmt.Errorf("Cannot decode data from JSON: %w", err)
+		return token, fmt.Errorf("Cannot decode result data from JSON: %w", err)
 	}
 
 	token.Created = GetNow().Unix()

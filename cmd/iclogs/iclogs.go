@@ -73,7 +73,16 @@ func parseArgs() {
 	flag.StringVar(&flagToTime, "t", "", usageToTime+" (shorthand)")
 
 	flag.Parse()
+
+	flagKey = getEnvOption(flagKey, apiKeyVar, "API key")
+	flagLogsUrl = getEnvOption(flagLogsUrl, logsEndpointVar, "Logs Endpoint")
+	flagAuthUrl = getEnvOption(flagAuthUrl, iamEndpointVar, "IAM Endpoint")
 	argQuery = flag.Arg(0)
+
+	if argQuery == "" {
+		log.Fatal("Logs query cannot be empty. Use `Lucene` syntax.")
+	}
+
 }
 
 func main() {
@@ -84,14 +93,6 @@ func main() {
 	)
 
 	parseArgs()
-
-	if argQuery == "" {
-		log.Fatal("Logs query cannot be empty. Use `Lucene` syntax.")
-	}
-
-	flagKey = getEnvOption(flagKey, apiKeyVar, "API key")
-	flagLogsUrl = getEnvOption(flagLogsUrl, logsEndpointVar, "Logs Endpoint")
-	flagAuthUrl = getEnvOption(flagAuthUrl, iamEndpointVar, "IAM Endpoint")
 
 	token, err := auth.GetToken(flagAuthUrl, flagKey)
 
