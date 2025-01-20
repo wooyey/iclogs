@@ -172,6 +172,10 @@ func TestQueryLogs(t *testing.T) {
 		{name: "GoodToken", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, want: expectedLogs, err: nil},
 	}
 
+	GetQueryUrl = func(e string) (string, error) {
+		return server.URL, nil
+	}
+
 	for _, tt := range testCases {
 
 		t.Run(tt.name, func(t *testing.T) {
@@ -191,9 +195,6 @@ func TestQueryLogs(t *testing.T) {
 			if !reflect.DeepEqual(tt.want, got) {
 				t.Errorf("\nGot:\t'%+v',\n Want:\t'%+v'", got, tt.want)
 			}
-
-			// fmt.Printf("\n\nWant: %+v\n\n", tt.want)
-			// fmt.Printf("\n\nGot: %+v\n\n", got)
 
 		})
 	}

@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const tokenPath = "/identity/token"
+
 // Token Response
 type Token struct {
 	Value      string `json:"access_token"`
@@ -32,17 +34,23 @@ var GetNow = func() time.Time {
 	return time.Now()
 }
 
+var GetAuthUrl = func(endpoint string) (string, error) {
+	return url.JoinPath(endpoint, tokenPath)
+}
+
 func (e GetTokenError) Error() string {
 	return fmt.Sprintf("Cannot Get Token. Error code: %v, message: %v, details: %v", e.Code, e.Message, e.Details)
 }
 
-func GetToken(addr, key string) (Token, error) {
+func GetToken(endpoint, key string) (Token, error) {
 
 	token := Token{}
 
 	data := url.Values{}
 	data.Add("grant_type", "urn:ibm:params:oauth:grant-type:apikey")
 	data.Add("apikey", key)
+
+	addr, err := GetAuthUrl(endpoint)
 
 	resp, err := http.PostForm(addr, data)
 	if err != nil {

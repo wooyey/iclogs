@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"slices"
 	"sort"
@@ -17,10 +18,14 @@ import (
 	"github.com/wooyey/iclogs/internal/platform/logs/tier"
 )
 
-const dataPrefix = "data: "
-const timeFormat = "2006-01-02T15:04:05.999999"
-const timestampField = "timestamp"
-const severityField = "severity"
+const (
+	dataPrefix     = "data: "
+	timeFormat     = "2006-01-02T15:04:05.999999"
+	timestampField = "timestamp"
+	severityField  = "severity"
+)
+
+const queryPath = "/v1/query"
 
 type QuerySpec struct {
 	Syntax    syntax.Syntax `json:"syntax"`
@@ -36,9 +41,17 @@ type Log struct {
 	Message  string
 }
 
+type UserData struct {
+	Message any `json:"message"` // could be float/int or string
+}
+
 type Query struct {
-	Query    string
-	Metadata *map[string]any
+	Query    string          `json:"query"`
+	Metadata *map[string]any `json:"metadata"`
+}
+
+var GetQueryUrl = func(endpoint string) (string, error) {
+	return url.JoinPath(endpoint, queryPath)
 }
 
 func structToMap(data any, m *map[string]any) {
@@ -85,7 +98,7 @@ func parseResult(m map[string]any) (Log, error) {
 		return Log{}, fmt.Errorf("Cannot parse timestamp: %w", err)
 	}
 
-	ud := make(map[string]any)
+	ud := UserData{}
 	if err := json.Unmarshal([]byte(userData), &ud); err != nil {
 		return Log{}, fmt.Errorf("Cannot Unmarshal User Data: %w", err)
 	}
@@ -93,10 +106,7 @@ func parseResult(m map[string]any) (Log, error) {
 	log := Log{
 		Time:     t,
 		Severity: severity,
-	}
-
-	if message, ok := ud["message"]; ok {
-		log.Message = message.(string)
+		Message:  fmt.Sprintf("%v", ud.Message),
 	}
 
 	return log, nil
@@ -107,8 +117,13 @@ func parseResponse(response io.Reader) ([]Log, error) {
 
 	logs := []Log{}
 
-	// response shouldn't have lines larger than 4K
 	scanner := bufio.NewScanner(response)
+
+	// 512K should be enough for line?
+	const maxCapacity = 512 * 1024
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -154,7 +169,7 @@ func parseResponse(response io.Reader) ([]Log, error) {
 	return logs, nil
 }
 
-func QueryLogs(addr, token, query string, spec QuerySpec) ([]Log, error) {
+func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 
 	q := Query{Query: query}
 
@@ -166,10 +181,18 @@ func QueryLogs(addr, token, query string, spec QuerySpec) ([]Log, error) {
 	}
 
 	j, err := json.Marshal(q)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot marshal payload: %w", err)
+	}
 
 	payload := bytes.NewBuffer(j)
 
-	c := http.Client{Timeout: time.Duration(1) * time.Second}
+	addr, err := GetQueryUrl(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create query URL: %w", err)
+	}
+
+	c := http.Client{Timeout: time.Duration(3) * time.Minute}
 	req, err := http.NewRequest("POST", addr, payload)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create POST request: %w", err)

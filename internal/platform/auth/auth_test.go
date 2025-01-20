@@ -121,6 +121,11 @@ func TestGetToken(t *testing.T) {
 				return time.Unix(tt.want.Created, 0)
 			}
 
+			// Mocking GetAuthUrl
+			GetAuthUrl = func(endpoint string) (string, error) {
+				return server.URL, nil
+			}
+
 			got, err := GetToken(server.URL, tt.input)
 
 			if tt.err != nil && err != nil && !errors.Is(err, tt.err.(error)) {
