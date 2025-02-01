@@ -1,10 +1,15 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"reflect"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/wooyey/iclogs/internal/platform/auth"
@@ -14,112 +19,204 @@ import (
 )
 
 const (
-	apiKeyVar       = "LOGS_API_KEY"
-	logsEndpointVar = "LOGS_ENDPOINT"
-	iamEndpointVar  = "IAM_ENDPOINT"
+	timeFormat       = "2006-01-02T15:04"
+	defaultTimeRange = time.Hour
 )
 
-const timeFormat = "2006-01-02T15:04"
-
-var (
-	flagKey       string
-	flagTimeRange time.Duration
-	flagLogsUrl   string
-	flagAuthUrl   string
-	flagFromTime  string
-	flagToTime    string
-	argQuery      string
-)
+const iamURL = "https://iam.cloud.ibm.com"
 
 func parseTime(t string) (time.Time, error) {
 	return time.ParseInLocation(timeFormat, t, time.Local)
 }
 
-func getEnvOption(value, key, name string) string {
-	if value != "" {
-		return value
-	}
-	v := os.Getenv(key)
+type timestamp time.Time
 
-	if v == "" {
-		log.Fatalf("%s is not set. Use proper option or `%s` env variable.", name, key)
-	}
-
-	return v
+func (t *timestamp) String() string {
+	return fmt.Sprint(*t)
 }
 
-func parseArgs() {
-	flag.Usage = func() {
-		w := flag.CommandLine.Output()
-		fmt.Fprintf(w, "Usage of %s: [options] <lucene query>\n", os.Args[0])
-		flag.PrintDefaults()
+func (t *timestamp) Set(value string) error {
+	pt, err := parseTime(value)
+	if err != nil {
+		return err
+	}
+	*t = timestamp(pt)
+	return nil
+}
+
+// Need to use exportable fields for reflect ...
+type CmdArgs struct {
+	ApiKey    string `env:"LOGS_API_KEY"`
+	TimeRange time.Duration
+	LogsURL   string `env:"LOGS_ENDPOINT"`
+	AuthURL   string
+	StartTime timestamp
+	EndTime   timestamp
+	Query     string
+}
+
+func getEnvArgs(args *CmdArgs) {
+
+	t := reflect.TypeOf(*args)
+
+	for i, f := range reflect.VisibleFields(t) {
+		if k := f.Tag.Get("env"); k != "" {
+			if fv := reflect.ValueOf(args).Elem().Field(i); fv.String() == "" {
+				v := os.Getenv(k)
+				fv.SetString(v)
+			}
+		}
+	}
+}
+
+func addFlagsVar(value interface{}, names []string, usage string, defaultValue interface{}) error {
+	for _, name := range names {
+		switch value.(type) {
+		case *string:
+			flag.StringVar(value.(*string), name, defaultValue.(string), usage)
+		case *time.Duration:
+			flag.DurationVar(value.(*time.Duration), name, defaultValue.(time.Duration), usage)
+		case flag.Value:
+			flag.Var(value.(flag.Value), name, usage)
+		default:
+			return errors.New("unknown type of flag value")
+		}
+	}
+	return nil
+}
+
+func printUsage(w io.Writer) {
+	fmt.Fprintf(w, "Usage of %s: [options] <lucene query>\n\n", os.Args[0])
+
+	args := map[string]struct {
+		names    []string
+		name     string
+		defValue string
+	}{}
+
+	flag.VisitAll(func(f *flag.Flag) {
+		name, usage := flag.UnquoteUsage(f)
+
+		// Use option `usage` as a unique key
+		option := args[usage]
+
+		// Make short and long option different using dashes
+		optionFlag := "-" + f.Name
+		if len(f.Name) > 1 {
+			optionFlag = "-" + optionFlag
+		}
+
+		option.names = append(option.names, optionFlag)
+		// Sort options names by their length
+		sort.SliceStable(option.names, func(i, j int) bool {
+			return len(option.names[i]) < len(option.names[j])
+		})
+
+		option.name = name
+
+		// almost copy pasta from flag to check zero value of default value
+		typ := reflect.TypeOf(f.Value)
+		var z reflect.Value
+		if typ.Kind() == reflect.Pointer {
+			z = reflect.New(typ.Elem())
+		} else {
+			z = reflect.Zero(typ)
+		}
+
+		// Add default value if it is not zero
+		if f.DefValue != z.Interface().(flag.Value).String() {
+			option.defValue = f.DefValue
+		}
+
+		args[usage] = option
+	})
+
+	keys := make([]string, 0, len(args))
+	for k := range args {
+		keys = append(keys, k)
 	}
 
-	const (
-		defaultTimeRange = time.Hour
-		usageTimeRange   = "Relative time for log search, from now (or from end time if specified)."
-		usageFromTime    = "Start time for log search in format `" + timeFormat + "`."
-		usageToTime      = "End time for log search in range format `" + timeFormat + "`."
-	)
+	// Sort printout in alphabetical order of flag names
+	sort.SliceStable(keys, func(i, j int) bool {
+		n := strings.Join(args[keys[i]].names, "")
+		m := strings.Join(args[keys[j]].names, "")
+		return n < m
+	})
 
-	flag.StringVar(&flagKey, "key", "", "API Key to use. Overrides `"+apiKeyVar+"` environment variable.")
-	flag.StringVar(&flagAuthUrl, "auth_url", "", "Authorization Endpoint URL. Overrides `"+iamEndpointVar+"` environment variable.")
-	flag.StringVar(&flagLogsUrl, "logs_url", "", "URL of IBM Cloud Log Endpoint. Overrides `"+logsEndpointVar+"` environment variable.")
-	flag.DurationVar(&flagTimeRange, "time_range", defaultTimeRange, usageTimeRange)
-	flag.DurationVar(&flagTimeRange, "r", defaultTimeRange, usageTimeRange+" (shorthand)")
-	flag.StringVar(&flagFromTime, "from", "", usageFromTime)
-	flag.StringVar(&flagFromTime, "f", "", usageFromTime+" (shorthand)")
-	flag.StringVar(&flagToTime, "to", "", usageFromTime)
-	flag.StringVar(&flagToTime, "t", "", usageToTime+" (shorthand)")
+	for _, k := range keys {
+		fmt.Fprintf(w, "  %s %s\n", strings.Join(args[k].names, ", "), args[k].name)
+		fmt.Fprintf(w, "        %s", k)
+		if args[k].defValue != "" {
+			fmt.Fprintf(w, " (default %s)", args[k].defValue)
+		}
+		fmt.Fprint(w, "\n")
+	}
+
+}
+
+func initParser(args *CmdArgs) {
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+
+	addFlagsVar(&args.ApiKey, []string{"key", "k"}, "API Key to use. Overrides `LOG_API_KEY` environment variable.", "")
+	addFlagsVar(&args.AuthURL, []string{"auth-url", "a"}, "Authorization Endpoint URL.", iamURL)
+	addFlagsVar(&args.LogsURL, []string{"logs-url", "l"}, "URL of IBM Cloud Log Endpoint. Overrides `LOGS_ENDPOINT` environment variable.", "")
+	addFlagsVar(&args.TimeRange, []string{"range", "r"}, "Relative time for log search, from now (or from end time if specified).", defaultTimeRange)
+	addFlagsVar(&args.StartTime, []string{"from", "f"}, "Start time for log search in format `"+timeFormat+"`.", nil)
+	addFlagsVar(&args.EndTime, []string{"to", "t"}, "End time for log search in range format `"+timeFormat+"`.", nil)
+}
+
+func parseArgs() CmdArgs {
+
+	// Re-init FlagSet to avoid unit tests dependency
+	// flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+
+	args := CmdArgs{}
+	initParser(&args)
+
+	flag.CommandLine.Usage = func() {
+		w := flag.CommandLine.Output()
+		printUsage(w)
+	}
 
 	flag.Parse()
+	args.Query = strings.Join(flag.Args(), " ")
 
-	flagKey = getEnvOption(flagKey, apiKeyVar, "API key")
-	flagLogsUrl = getEnvOption(flagLogsUrl, logsEndpointVar, "Logs Endpoint")
-	flagAuthUrl = getEnvOption(flagAuthUrl, iamEndpointVar, "IAM Endpoint")
-	argQuery = flag.Arg(0)
+	getEnvArgs(&args)
 
-	if argQuery == "" {
-		log.Fatal("Logs query cannot be empty. Use `Lucene` syntax.")
-	}
-
+	return args
 }
 
 func main() {
 
-	var (
-		endDate   time.Time
-		startDate time.Time
-	)
+	args := parseArgs()
 
-	parseArgs()
+	if args.Query == "" {
+		log.Fatal("You need to provide query string. Use `Lucene` syntax.")
+	}
 
-	token, err := auth.GetToken(flagAuthUrl, flagKey)
+	if args.ApiKey == "" {
+		log.Fatal("You need to provide API Key.")
+	}
+
+	if args.LogsURL == "" {
+		log.Fatal("You need to provide IBM Cloud Logs endpoint URL.")
+	}
+
+	token, err := auth.GetToken(args.AuthURL, args.ApiKey)
 
 	if err != nil {
-		log.Fatalf("Cannot get token from '%s': %v", flagAuthUrl, err)
+		log.Fatalf("Cannot get token from '%s': %v", args.AuthURL, err)
 	}
 
-	if flagFromTime != "" {
-		startDate, err = parseTime(flagFromTime)
-		if err != nil {
-			log.Fatalf("Cannot parse from time: '%s'", flagFromTime)
-		}
-	}
-
-	if flagToTime != "" {
-		endDate, err = parseTime(flagToTime)
-		if err != nil {
-			log.Fatalf("Cannot parse to time: '%s'", flagToTime)
-		}
-	}
+	endDate := time.Time(args.EndTime)
+	startDate := time.Time(args.StartTime)
 
 	if endDate.IsZero() {
 		endDate = time.Now()
 	}
 
 	if startDate.IsZero() {
-		startDate = endDate.Add(-flagTimeRange)
+		startDate = endDate.Add(-args.TimeRange)
 	}
 
 	spec := logs.QuerySpec{
@@ -130,9 +227,9 @@ func main() {
 		EndDate:   endDate,
 	}
 
-	l, err := logs.QueryLogs(flagLogsUrl, token.Value, argQuery, spec)
+	l, err := logs.QueryLogs(args.LogsURL, token.Value, args.Query, spec)
 	if err != nil {
-		log.Fatalf("Cannot get logs from '%s': %v", flagLogsUrl, err)
+		log.Fatalf("Cannot get logs from '%s': %v", args.LogsURL, err)
 	}
 
 	for _, line := range l {
