@@ -1,5 +1,6 @@
 main_package_path = github.com/wooyey/iclogs/cmd/iclogs
 binary_name = iclogs
+git_info = $(shell git describe --always --dirty --tags)
 
 .PHONY: help
 help: ## Display this help message.
@@ -27,11 +28,11 @@ audit: test ## Run quality control checks.
 
 .PHONY: test
 test: ## Run all tests.
-	go test -ldflags "-X ${main_package_path}.version=v1.0.0" -v -race -buildvcs ./...
+	go test -v -race -buildvcs ./...
 
 .PHONY: test/cover
 test/cover: ## Run all tests and display coverage.
-	go test -ldflags "-X main.version=v1.0.0" -v -race -buildvcs -coverprofile=/tmp/coverage.out ./...
+	go test -v -race -buildvcs -coverprofile=/tmp/coverage.out ./...
 	go tool cover -html=/tmp/coverage.out
 
 ##@ Development
@@ -43,7 +44,7 @@ tidy: ## Tidy modfiles and format .go files
 
 .PHONY: build
 build: ## Build the application.
-	go build ${main_package_path}
+	go build -ldflags "-X main.version=${git_info}" ${main_package_path}
 
 .PHONY: run
 run: build ## Run the application.
@@ -63,3 +64,6 @@ run/live: ## Run the application with reloading on file changes.
 push: confirm audit no-dirty ## Push changes to remote Git repo.
 	git push
 
+.PHONY: build/production
+build/production: audit no-dirty ## Build production binary.
+	go build -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}

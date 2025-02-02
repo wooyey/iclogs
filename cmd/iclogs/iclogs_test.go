@@ -21,7 +21,7 @@ func TestParseArgs(t *testing.T) {
 			input: "./iclogs --key ApiKey --from 2024-03-12T12:00 --to 2024-03-12T13:00 --range 30m --logs-url https://logs.endpoint.cloud.ibm.com --auth-url https://iam.different.cloud.ibm.com lucene query",
 			envs:  map[string]string{},
 			want: CmdArgs{
-				ApiKey:    "ApiKey",
+				APIKey:    "ApiKey",
 				TimeRange: time.Minute * 30,
 				LogsURL:   "https://logs.endpoint.cloud.ibm.com",
 				AuthURL:   "https://iam.different.cloud.ibm.com",
@@ -35,7 +35,7 @@ func TestParseArgs(t *testing.T) {
 			input: "./iclogs -k ApiKey -f 2024-03-12T12:00 -t 2024-03-12T13:00 -r 30m -l https://logs.endpoint.cloud.ibm.com -a https://iam.different.cloud.ibm.com lucene query",
 			envs:  map[string]string{},
 			want: CmdArgs{
-				ApiKey:    "ApiKey",
+				APIKey:    "ApiKey",
 				TimeRange: time.Minute * 30,
 				LogsURL:   "https://logs.endpoint.cloud.ibm.com",
 				AuthURL:   "https://iam.different.cloud.ibm.com",
@@ -63,7 +63,7 @@ func TestParseArgs(t *testing.T) {
 				AuthURL:   iamURL,
 				Query:     "lucene query",
 				LogsURL:   "https://logs.cloud.ibm.com",
-				ApiKey:    "api_key",
+				APIKey:    "api_key",
 			},
 		},
 		{
@@ -75,7 +75,7 @@ func TestParseArgs(t *testing.T) {
 				AuthURL:   iamURL,
 				Query:     "lucene query",
 				LogsURL:   "https://logs.cloud.ibm.com",
-				ApiKey:    "some_key",
+				APIKey:    "some_key",
 			},
 		},
 	}

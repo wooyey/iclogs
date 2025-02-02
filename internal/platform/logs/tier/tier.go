@@ -1,3 +1,4 @@
+// Package tier to have some logs API constants
 package tier
 
 type Tier string

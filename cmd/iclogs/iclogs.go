@@ -46,9 +46,10 @@ func (t *timestamp) Set(value string) error {
 	return nil
 }
 
-// Need to use exportable fields for reflect ...
+// CmdArgs includes all options
+// need to have exportable fields for reflect ...
 type CmdArgs struct {
-	ApiKey    string `env:"LOGS_API_KEY"`
+	APIKey    string `env:"LOGS_API_KEY"`
 	TimeRange time.Duration
 	LogsURL   string `env:"LOGS_ENDPOINT"`
 	AuthURL   string
@@ -74,15 +75,15 @@ func getEnvArgs(args *CmdArgs) {
 
 func addFlagsVar(value interface{}, names []string, usage string, defaultValue interface{}) error {
 	for _, name := range names {
-		switch value.(type) {
+		switch v := value.(type) {
 		case *string:
-			flag.StringVar(value.(*string), name, defaultValue.(string), usage)
+			flag.StringVar(v, name, defaultValue.(string), usage)
 		case *time.Duration:
-			flag.DurationVar(value.(*time.Duration), name, defaultValue.(time.Duration), usage)
+			flag.DurationVar(v, name, defaultValue.(time.Duration), usage)
 		case flag.Value:
-			flag.Var(value.(flag.Value), name, usage)
+			flag.Var(v, name, usage)
 		case *bool:
-			flag.BoolVar(value.(*bool), name, defaultValue.(bool), usage)
+			flag.BoolVar(v, name, defaultValue.(bool), usage)
 		default:
 			return errors.New("unknown type of flag value")
 		}
@@ -173,7 +174,7 @@ func printUsage(w io.Writer) {
 func initParser(args *CmdArgs) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	addFlagsVar(&args.ApiKey, []string{"key", "k"}, "API Key to use. Overrides `LOG_API_KEY` environment variable.", "")
+	addFlagsVar(&args.APIKey, []string{"key", "k"}, "API Key to use. Overrides `LOG_API_KEY` environment variable.", "")
 	addFlagsVar(&args.AuthURL, []string{"auth-url", "a"}, "Authorization Endpoint URL.", iamURL)
 	addFlagsVar(&args.LogsURL, []string{"logs-url", "l"}, "URL of IBM Cloud Log Endpoint. Overrides `LOGS_ENDPOINT` environment variable.", "")
 	addFlagsVar(&args.TimeRange, []string{"range", "r"}, "Relative time for log search, from now (or from end time if specified).", defaultTimeRange)
@@ -212,14 +213,16 @@ func main() {
 	args := parseArgs()
 
 	if args.Version {
-		log.Fatal(getVersion())
+		w := flag.CommandLine.Output()
+		fmt.Fprintf(w, "%s\n", getVersion())
+		os.Exit(0)
 	}
 
 	if args.Query == "" {
 		log.Fatal("You need to provide query string. Use `Lucene` syntax.")
 	}
 
-	if args.ApiKey == "" {
+	if args.APIKey == "" {
 		log.Fatal("You need to provide API Key.")
 	}
 
@@ -227,7 +230,7 @@ func main() {
 		log.Fatal("You need to provide IBM Cloud Logs endpoint URL.")
 	}
 
-	token, err := auth.GetToken(args.AuthURL, args.ApiKey)
+	token, err := auth.GetToken(args.AuthURL, args.APIKey)
 
 	if err != nil {
 		log.Fatalf("Cannot get token from '%s': %v", args.AuthURL, err)
