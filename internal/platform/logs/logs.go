@@ -1,3 +1,4 @@
+// Package logs to communicate with IBM Cloud Logs API
 package logs
 
 import (
@@ -50,7 +51,7 @@ type Query struct {
 	Metadata *map[string]any `json:"metadata"`
 }
 
-var GetQueryUrl = func(endpoint string) (string, error) {
+var GetQueryURL = func(endpoint string) (string, error) {
 	return url.JoinPath(endpoint, queryPath)
 }
 
@@ -73,7 +74,7 @@ func getKeyValue(s []any, key string) (string, error) {
 	idx := slices.IndexFunc(s, func(m any) bool { return m.(map[string]any)["key"].(string) == key })
 
 	if idx < 0 {
-		return "", fmt.Errorf("Cannot find value for key: '%s'", key)
+		return "", fmt.Errorf("cannot find value for key: '%s'", key)
 	}
 
 	return s[idx].(map[string]any)["value"].(string), nil
@@ -86,21 +87,21 @@ func parseResult(m map[string]any) (Log, error) {
 
 	timestamp, err := getKeyValue(metadata, timestampField)
 	if err != nil {
-		return Log{}, fmt.Errorf("Cannot parse timestamp: %w", err)
+		return Log{}, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
 	severity, err := getKeyValue(metadata, severityField)
 	if err != nil {
-		return Log{}, fmt.Errorf("Cannot parse severity: %w", err)
+		return Log{}, fmt.Errorf("cannot parse severity: %w", err)
 	}
 
 	t, err := time.ParseInLocation(timeFormat, timestamp, time.Local)
 	if err != nil {
-		return Log{}, fmt.Errorf("Cannot parse timestamp: %w", err)
+		return Log{}, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
 
 	ud := UserData{}
 	if err := json.Unmarshal([]byte(userData), &ud); err != nil {
-		return Log{}, fmt.Errorf("Cannot Unmarshal User Data: %w", err)
+		return Log{}, fmt.Errorf("cannot unmarshal user data: %w", err)
 	}
 
 	log := Log{
@@ -135,7 +136,7 @@ func parseResponse(response io.Reader) ([]Log, error) {
 		data := make(map[string]any)
 
 		if err := json.Unmarshal([]byte(d), &data); err != nil {
-			return nil, fmt.Errorf("Cannot Unmarshal Data: %w", err)
+			return nil, fmt.Errorf("cannot Unmarshal Data: %w", err)
 		}
 
 		if val, ok := data["result"]; ok {
@@ -148,7 +149,7 @@ func parseResponse(response io.Reader) ([]Log, error) {
 				l, err := parseResult(r)
 
 				if err != nil {
-					return nil, fmt.Errorf("Cannot parse result: %w", err)
+					return nil, fmt.Errorf("cannot parse result: %w", err)
 				}
 
 				logs = append(logs, l)
@@ -182,20 +183,20 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 
 	j, err := json.Marshal(q)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot marshal payload: %w", err)
+		return nil, fmt.Errorf("cannot marshal payload: %w", err)
 	}
 
 	payload := bytes.NewBuffer(j)
 
-	addr, err := GetQueryUrl(endpoint)
+	addr, err := GetQueryURL(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot create query URL: %w", err)
+		return nil, fmt.Errorf("cannot create query URL: %w", err)
 	}
 
 	c := http.Client{Timeout: time.Duration(3) * time.Minute}
 	req, err := http.NewRequest("POST", addr, payload)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot create POST request: %w", err)
+		return nil, fmt.Errorf("cannot create POST request: %w", err)
 	}
 
 	req.Header.Add("content-type", "application/json")
@@ -204,7 +205,7 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return nil, fmt.Errorf("Cannot POST data: %w", err)
+		return nil, fmt.Errorf("cannot POST data: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -212,16 +213,16 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 		body, err := io.ReadAll(resp.Body)
 
 		if err != nil {
-			return nil, fmt.Errorf("Cannot read body: %w", err)
+			return nil, fmt.Errorf("cannot read body: %w", err)
 		}
 
-		return nil, fmt.Errorf("Got HTTP error code: %d, message: '%s'", resp.StatusCode, body)
+		return nil, fmt.Errorf("got HTTP error code: %d, message: '%s'", resp.StatusCode, body)
 	}
 
 	logs, err := parseResponse(resp.Body)
 
 	if err != nil {
-		return nil, fmt.Errorf("Error when parsing results: %w", err)
+		return nil, fmt.Errorf("error when parsing results: %w", err)
 	}
 
 	return logs, nil

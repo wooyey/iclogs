@@ -87,6 +87,9 @@ func mockServer() *httptest.Server {
 				w.WriteHeader(403)
 				fmt.Fprintln(w, httpError("Wrong API Key", fmt.Sprintf("Given Key: %s", k)))
 			}
+		case r.Form.Get("grant_type") == "":
+			w.WriteHeader(400)
+			fmt.Fprintln(w, errorBadReq)
 		default:
 			w.WriteHeader(400)
 			e := httpError("Wrong Input", r.PostForm.Encode())

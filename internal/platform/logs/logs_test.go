@@ -15,13 +15,13 @@ import (
 )
 
 type Metadata struct {
-	Start_date               time.Time
-	End_date                 time.Time
-	Default_source           string
-	Tier                     tier.Tier
-	Syntax                   syntax.Syntax
-	Limit                    int32
-	Strict_fields_validation bool
+	StartDate        time.Time `json:"start_date"`
+	EndDate          time.Time `json:"end_date"`
+	DefaultSource    string    `json:"default_source"`
+	Tier             tier.Tier
+	Syntax           syntax.Syntax
+	Limit            int32
+	StrictValidation bool `json:"strict_fields_validation"`
 }
 
 type LogsQuery struct {
@@ -87,7 +87,7 @@ var respFailParse = `{
 	"status_code": 400
 }`
 
-func mockServer() *httptest.Server {
+func mockServer(response string) *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
@@ -126,7 +126,7 @@ func mockServer() *httptest.Server {
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, respResults)
+		fmt.Fprint(w, response)
 	}
 
 	return httptest.NewServer(http.HandlerFunc(f))
@@ -157,23 +157,25 @@ var expectedLogs = []Log{
 
 func TestQueryLogs(t *testing.T) {
 
-	server := mockServer()
-	defer server.Close()
-
 	testCases := []struct {
-		name  string
-		token string
-		query string
-		spec  QuerySpec
-		want  []Log
-		err   any
+		name     string
+		token    string
+		query    string
+		response string
+		spec     QuerySpec
+		want     []Log
+		err      any
 	}{
-		{name: "GoodToken", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, want: expectedLogs, err: nil},
+		{name: "GoodToken", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respResults, want: expectedLogs, err: nil},
+		{name: "NoLogs", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respNoLogs, want: []Log{}, err: nil},
+		{name: "OnlyWarnings", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respWarnings, want: []Log{}, err: nil},
 	}
 
 	for _, tt := range testCases {
 
 		t.Run(tt.name, func(t *testing.T) {
+			server := mockServer(tt.response)
+			defer server.Close()
 
 			got, err := QueryLogs(server.URL, tt.token, tt.query, tt.spec)
 

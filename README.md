@@ -3,13 +3,14 @@
 IBM Cloud Logs CLI
 
 It's a small project to learn Go Lang in hard but useful way.
+So trying to avoid any non-standard libraries ...
 
 ## How to build
 
-For now only manual recipe to build it:
+For build you can use attached `Makefile` and `make`:
 
 ```shell
-go build cmd/iclogs/iclogs.go
+make build
 ```
 
 ## How to use
@@ -18,17 +19,36 @@ To use it you need to know/have:
 
 - API key of user with granted access to IBM Cloud Logs
 - URL to IBM Cloud Logs Endpoint
-- URL to IAM (Authorization) IBM Endpoint.
+- URL to IAM (Authorization) IBM Endpoint (default it is `https://iam.cloud.ibm.com`).
 
-I recommend to use environmental variables (`LOGS_API_KEY`, `LOGS_ENDPOINT`, `IAM_ENDPOINT`) to store above information.
+I recommend to use environmental variables (`LOGS_API_KEY`, `LOGS_ENDPOINT`) to store above information.
 Of course you can override this values with CLI options.
+
+### Usage message
+
+```
+Usage of ./iclogs: [options] <lucene query>
+
+  -a, --auth-url string
+        Authorization Endpoint URL. (default https://iam.cloud.ibm.com)
+  -f, --from 2006-01-02T15:04
+        Start time for log search in format 2006-01-02T15:04.
+  -k, --key LOG_API_KEY
+        API Key to use. Overrides LOG_API_KEY environment variable.
+  -l, --logs-url LOGS_ENDPOINT
+        URL of IBM Cloud Log Endpoint. Overrides LOGS_ENDPOINT environment variable.
+  -r, --range duration
+        Relative time for log search, from now (or from end time if specified). (default 1h0m0s)
+  -t, --to 2006-01-02T15:04
+        End time for log search in range format 2006-01-02T15:04.
+```
 
 ### Example queries
 
 #### Logs search from last 3 hours
 
 ```shell
-./iclogs -r 3h -auth_url https://iam.cloud.ibm.com -logs_url https://8e22d8ef-1xx9-49fb-be9a-zz287944864f.api.us-south.logs.cloud.ibm.com -key someapikey 'kubernetes.pod_name:name-of-the-pod-with-some-random-uuid*'
+./iclogs -r 3h --logs_url https://<instance-id>.api.<region-id>.logs.cloud.ibm.com --key someapikey 'kubernetes.pod_name:name-of-the-pod-with-some-random-uuid*'
 ```
 
 `-r` specifies time duration from now in past or if specified end time
@@ -41,8 +61,7 @@ Example `.env` file:
 
 ```shell
 LOGS_API_KEY=someapikey
-LOGS_ENDPOINT=https://8e22d8ef-1xx9-49fb-be9a-zz287944864f.api.us-south.logs.cloud.ibm.com
-IAM_ENDPOINT=https://iam.cloud.ibm.com
+LOGS_ENDPOINT=https://<instance-id>.api.<region-id>.logs.cloud.ibm.com
 ```
 
 For such simple file you can use below trick to create environmental variables per Bash session:
@@ -55,4 +74,33 @@ After above command - logs query as above is much simpler:
 
 ```shell
 ./iclogs -r 3h 'kubernetes.pod_name:name-of-the-pod-with-some-random-uuid*'
+```
+
+#### Logs search using shell script
+
+Another approach to not repeat flags is to use shell script like below within `iclogs` binary directory:
+
+```bash
+#!/usr/bin/env bash
+
+export LOGS_API_KEY=someapikey
+export LOGS_ENDPOINT=https://<instance-id>.api.<region-id>.logs.cloud.ibm.com
+
+DIR=$(dirname "$0") # Script directory
+$DIR/iclogs $*
+```
+
+#### Logs using 1password CLI
+
+Create a `.env` file with references to your [1Password](https://1password.com) vault, ie.:
+
+```env
+LOGS_API_KEY=op://myvault/logs/credential
+LOGS_ENDPOINT=op://myvault/logs/url
+```
+
+Then run `iclogs` with `op run` command:
+
+```bash
+op run --env-file="./.env" -- ./iclogs -r 3h 'kubernetes.pod_name:name-of-the-pod-with-some-random-uuid*'
 ```
