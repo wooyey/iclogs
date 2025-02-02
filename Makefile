@@ -65,5 +65,5 @@ push: confirm audit no-dirty ## Push changes to remote Git repo.
 	git push
 
 .PHONY: build/production
-build/production: audit no-dirty ## Build production binary.
+build/production: no-dirty ## Build production binary.
 	go build -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
