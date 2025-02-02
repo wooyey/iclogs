@@ -66,4 +66,6 @@ push: confirm audit no-dirty ## Push changes to remote Git repo.
 
 .PHONY: build/production
 build/production: no-dirty ## Build production binary.
-	go build -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o ${binary_name}.darwin.arm64 -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o ${binary_name}.darwin.amd64 -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
+	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o  ${binary_name}.linux.amd64 -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}

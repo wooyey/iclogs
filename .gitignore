@@ -26,3 +26,5 @@ go.work.sum
 
 # binary
 iclogs
+iclogs.darwin*
+iclogs.linux*
