@@ -208,7 +208,7 @@ func getVersion() string {
 		log.Fatal("Cannot get build info")
 	}
 
-	return fmt.Sprintf("%+v", bi)
+	return fmt.Sprintf("%+v\n\n%+v\n", bi, bi.Main.Version)
 }
 
 func main() {
