@@ -1,4 +1,4 @@
-main_package_path = ./cmd/iclogs
+main_package_path = github.com/wooyey/iclogs/cmd/iclogs
 binary_name = iclogs
 
 .PHONY: help
@@ -7,7 +7,7 @@ help: ## Display this help message.
 
 .PHONY: confirm
 confirm:
-	@echo -n 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
+	@echo 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
 
 .PHONY: no-dirty
 no-dirty:
@@ -27,11 +27,11 @@ audit: test ## Run quality control checks.
 
 .PHONY: test
 test: ## Run all tests.
-	go test -v -race -buildvcs ./...
+	go test -ldflags "-X ${main_package_path}.version=v1.0.0" -v -race -buildvcs ./...
 
 .PHONY: test/cover
 test/cover: ## Run all tests and display coverage.
-	go test -v -race -buildvcs -coverprofile=/tmp/coverage.out ./...
+	go test -ldflags "-X main.version=v1.0.0" -v -race -buildvcs -coverprofile=/tmp/coverage.out ./...
 	go tool cover -html=/tmp/coverage.out
 
 ##@ Development
@@ -63,8 +63,3 @@ run/live: ## Run the application with reloading on file changes.
 push: confirm audit no-dirty ## Push changes to remote Git repo.
 	git push
 
-.PHONY: production/deploy
-production/deploy: confirm audit no-dirty ## Deploy the application.
-	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=/tmp/bin/linux_amd64/${binary_name} ${main_package_path}
-	upx -5 /tmp/bin/linux_amd64/${binary_name}
-# Include additional deployment steps here...

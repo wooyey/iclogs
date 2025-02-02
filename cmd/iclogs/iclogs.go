@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -25,6 +24,8 @@ const (
 )
 
 const iamURL = "https://iam.cloud.ibm.com"
+
+var version string
 
 func parseTime(t string) (time.Time, error) {
 	return time.ParseInLocation(timeFormat, t, time.Local)
@@ -203,17 +204,16 @@ func parseArgs() CmdArgs {
 }
 
 func getVersion() string {
-	bi, ok := debug.ReadBuildInfo()
-	if !ok {
-		log.Fatal("Cannot get build info")
-	}
-
-	return fmt.Sprintf("%+v\n\n%+v\n", bi, bi.Main.Version)
+	return fmt.Sprintf("iclogs version %s", version)
 }
 
 func main() {
 
 	args := parseArgs()
+
+	if args.Version {
+		log.Fatal(getVersion())
+	}
 
 	if args.Query == "" {
 		log.Fatal("You need to provide query string. Use `Lucene` syntax.")

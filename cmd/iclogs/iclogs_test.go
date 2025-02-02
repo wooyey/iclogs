@@ -137,8 +137,9 @@ func TestPrintUsage(t *testing.T) {
 
 func TestGetVersion(t *testing.T) {
 
+	version = "v1.0.0"
 	got := getVersion()
-	want := "iclogs version "
+	want := "iclogs version v1.0.0"
 
 	if got != want {
 		t.Errorf("\nGot:\t'%s'\nWant:\t'%s'", got, want)
