@@ -11,21 +11,28 @@ jobs:
         with:
           fetch-depth: 0 # needed for semantic-version
 
-      - name: Set up Go
+      - name: 🔰 Set up Go ...
         uses: actions/setup-go@v4
 
       - name: 🧪 Testing ...
         run: make audit
 
-      - name: 🎉 Tagging ...
+      - name: 🔨 Generating semantic version ...
+        id: semantic_version
         uses: paulhatch/semantic-version@v5.4.0
         with:
           bump_each_commit: true
 
-      - name: Build
+      - name: 🎉 Tagging ...
+        run: |
+          git tag ${{ steps.semantic_version.outputs.version_tag }}
+          git push --tags
+
+
+      - name: 👷 Building ...
         run: make build/production
 
-      - name: Release 🚀
+      - name: 🚀 Release ...
         uses: softprops/action-gh-release@v2
         with:
           files: |
