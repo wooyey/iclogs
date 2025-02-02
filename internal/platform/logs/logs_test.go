@@ -15,13 +15,13 @@ import (
 )
 
 type Metadata struct {
-	Start_date               time.Time
-	End_date                 time.Time
-	Default_source           string
-	Tier                     tier.Tier
-	Syntax                   syntax.Syntax
-	Limit                    int32
-	Strict_fields_validation bool
+	StartDate        time.Time `json:"start_date"`
+	EndDate          time.Time `json:"end_date"`
+	DefaultSource    string    `json:"default_source"`
+	Tier             tier.Tier
+	Syntax           syntax.Syntax
+	Limit            int32
+	StrictValidation bool `json:"strict_fields_validation"`
 }
 
 type LogsQuery struct {

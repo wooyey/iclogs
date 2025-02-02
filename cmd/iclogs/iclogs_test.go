@@ -125,10 +125,22 @@ func TestPrintUsage(t *testing.T) {
         Relative time for log search, from now (or from end time if specified). (default 1h0m0s)
   -t, --to 2006-01-02T15:04
         End time for log search in range format 2006-01-02T15:04.
+  --version
+        Show binary version.
 `
 
 	if got != want {
 		t.Errorf("\nGot:\t%q\nWant:\t%q", got, want)
 	}
 
+}
+
+func TestGetVersion(t *testing.T) {
+
+	got := getVersion()
+	want := "iclogs version "
+
+	if got != want {
+		t.Errorf("\nGot:\t'%s'\nWant:\t'%s'", got, want)
+	}
 }

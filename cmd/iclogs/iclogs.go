@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -53,6 +54,7 @@ type CmdArgs struct {
 	StartTime timestamp
 	EndTime   timestamp
 	Query     string
+	Version   bool
 }
 
 func getEnvArgs(args *CmdArgs) {
@@ -78,6 +80,8 @@ func addFlagsVar(value interface{}, names []string, usage string, defaultValue i
 			flag.DurationVar(value.(*time.Duration), name, defaultValue.(time.Duration), usage)
 		case flag.Value:
 			flag.Var(value.(flag.Value), name, usage)
+		case *bool:
+			flag.BoolVar(value.(*bool), name, defaultValue.(bool), usage)
 		default:
 			return errors.New("unknown type of flag value")
 		}
@@ -100,13 +104,7 @@ func printUsage(w io.Writer) {
 		// Use option `usage` as a unique key
 		option := args[usage]
 
-		// Make short and long option different using dashes
-		optionFlag := "-" + f.Name
-		if len(f.Name) > 1 {
-			optionFlag = "-" + optionFlag
-		}
-
-		option.names = append(option.names, optionFlag)
+		option.names = append(option.names, f.Name)
 		// Sort options names by their length
 		sort.SliceStable(option.names, func(i, j int) bool {
 			return len(option.names[i]) < len(option.names[j])
@@ -138,14 +136,31 @@ func printUsage(w io.Writer) {
 
 	// Sort printout in alphabetical order of flag names
 	sort.SliceStable(keys, func(i, j int) bool {
-		n := strings.Join(args[keys[i]].names, "")
-		m := strings.Join(args[keys[j]].names, "")
-		return n < m
+		return args[keys[i]].names[0] < args[keys[j]].names[0]
 	})
 
 	for _, k := range keys {
-		fmt.Fprintf(w, "  %s %s\n", strings.Join(args[k].names, ", "), args[k].name)
-		fmt.Fprintf(w, "        %s", k)
+
+		// Add proper number of dashes to options
+		names := make([]string, len(args[k].names))
+		for i, n := range args[k].names {
+			if len(n) > 1 {
+				names[i] = "--" + n
+			} else {
+				names[i] = "-" + n
+			}
+		}
+
+		// flags
+		fmt.Fprintf(w, "  %s", strings.Join(names, ", "))
+
+		// type names
+		if args[k].name != "" {
+			fmt.Fprintf(w, " %s", args[k].name)
+		}
+
+		// usage
+		fmt.Fprintf(w, "\n        %s", k)
 		if args[k].defValue != "" {
 			fmt.Fprintf(w, " (default %s)", args[k].defValue)
 		}
@@ -163,6 +178,7 @@ func initParser(args *CmdArgs) {
 	addFlagsVar(&args.TimeRange, []string{"range", "r"}, "Relative time for log search, from now (or from end time if specified).", defaultTimeRange)
 	addFlagsVar(&args.StartTime, []string{"from", "f"}, "Start time for log search in format `"+timeFormat+"`.", nil)
 	addFlagsVar(&args.EndTime, []string{"to", "t"}, "End time for log search in range format `"+timeFormat+"`.", nil)
+	addFlagsVar(&args.Version, []string{"version"}, "Show binary version.", false)
 }
 
 func parseArgs() CmdArgs {
@@ -184,6 +200,15 @@ func parseArgs() CmdArgs {
 	getEnvArgs(&args)
 
 	return args
+}
+
+func getVersion() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		log.Fatal("Cannot get build info")
+	}
+
+	return fmt.Sprintf("%+v", bi)
 }
 
 func main() {
