@@ -19,7 +19,7 @@ jobs:
         run: make audit
 
       - name: Tagging 🎉
-        uses: paulhatch/semantic-version@latest
+        uses: paulhatch/semantic-version
         with:
           bump_each_commit: true
 
