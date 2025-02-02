@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -28,6 +27,8 @@ const (
 
 const queryPath = "/v1/query"
 
+const maxLineSize = 2048 * 1024 // Max line size - 2MB should be enough.
+
 type QuerySpec struct {
 	Syntax    syntax.Syntax `json:"syntax"`
 	Limit     int           `json:"limit"`
@@ -44,6 +45,23 @@ type Log struct {
 
 type UserData struct {
 	Message any `json:"message"` // could be float/int or string
+}
+
+type KeyValue struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type Record struct {
+	Data     string     `json:"user_data"`
+	Metadata []KeyValue `json:"metadata"`
+	Labels   []KeyValue `json:"labels"`
+}
+
+type MessageResult struct {
+	Result struct {
+		Results []Record `json:"results"`
+	} `json:"result"`
 }
 
 type Query struct {
@@ -69,27 +87,24 @@ func structToMap(data any, m *map[string]any) {
 	}
 }
 
-func getKeyValue(s []any, key string) (string, error) {
+func getValue(kv []KeyValue, key string) (string, error) {
 
-	idx := slices.IndexFunc(s, func(m any) bool { return m.(map[string]any)["key"].(string) == key })
-
-	if idx < 0 {
-		return "", fmt.Errorf("cannot find value for key: '%s'", key)
+	for _, v := range kv {
+		if v.Key == key {
+			return v.Value, nil
+		}
 	}
 
-	return s[idx].(map[string]any)["value"].(string), nil
+	return "", fmt.Errorf("cannot find value for key: '%s'", key)
 }
 
-func parseResult(m map[string]any) (Log, error) {
+func parseRecord(record *Record) (Log, error) {
 
-	metadata := m["metadata"].([]any)
-	userData := m["user_data"].(string)
-
-	timestamp, err := getKeyValue(metadata, timestampField)
+	timestamp, err := getValue(record.Metadata, timestampField)
 	if err != nil {
 		return Log{}, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
-	severity, err := getKeyValue(metadata, severityField)
+	severity, err := getValue(record.Metadata, severityField)
 	if err != nil {
 		return Log{}, fmt.Errorf("cannot parse severity: %w", err)
 	}
@@ -100,7 +115,7 @@ func parseResult(m map[string]any) (Log, error) {
 	}
 
 	ud := UserData{}
-	if err := json.Unmarshal([]byte(userData), &ud); err != nil {
+	if err := json.Unmarshal([]byte(record.Data), &ud); err != nil {
 		return Log{}, fmt.Errorf("cannot unmarshal user data: %w", err)
 	}
 
@@ -111,7 +126,6 @@ func parseResult(m map[string]any) (Log, error) {
 	}
 
 	return log, nil
-
 }
 
 func parseResponse(response io.Reader) ([]Log, error) {
@@ -120,10 +134,8 @@ func parseResponse(response io.Reader) ([]Log, error) {
 
 	scanner := bufio.NewScanner(response)
 
-	// 512K should be enough for line?
-	const maxCapacity = 512 * 1024
-	buf := make([]byte, maxCapacity)
-	scanner.Buffer(buf, maxCapacity)
+	buf := make([]byte, maxLineSize)
+	scanner.Buffer(buf, maxLineSize)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -133,28 +145,21 @@ func parseResponse(response io.Reader) ([]Log, error) {
 		}
 
 		d := line[len(dataPrefix):]
-		data := make(map[string]any)
+		// data := make(map[string]any)
+		data := MessageResult{}
 
 		if err := json.Unmarshal([]byte(d), &data); err != nil {
-			return nil, fmt.Errorf("cannot Unmarshal Data: %w", err)
+			return nil, fmt.Errorf("cannot unmarshal data line payload: %w", err)
 		}
 
-		if val, ok := data["result"]; ok {
+		for _, r := range data.Result.Results {
 
-			results := val.(map[string]any)["results"]
-
-			for _, result := range results.([]any) {
-				r := result.(map[string]any)
-
-				l, err := parseResult(r)
-
-				if err != nil {
-					return nil, fmt.Errorf("cannot parse result: %w", err)
-				}
-
-				logs = append(logs, l)
-
+			l, err := parseRecord(&r)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse record from results: %w", err)
 			}
+
+			logs = append(logs, l)
 
 		}
 
