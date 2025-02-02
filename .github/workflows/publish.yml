@@ -37,6 +37,9 @@ jobs:
       - name: 🚀 Release ...
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.semantic_version.outputs.version_tag }}
+          generate_release_notes: true
+          make_latest: true
           files: |
             iclogs.darwin.amd64
             iclogs.darwin.arm64
