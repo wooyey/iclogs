@@ -4,7 +4,9 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
+  publish:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
