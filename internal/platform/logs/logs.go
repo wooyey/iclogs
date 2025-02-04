@@ -44,7 +44,10 @@ type Log struct {
 }
 
 type UserData struct {
-	Message any `json:"message"` // could be float/int or string
+	Message    any `json:"message"` // could be float/int or string
+	MessageObj struct {
+		Message any `json:"msg"` // just in case pretend that it can be anything, see above ...
+	} `json:"message_obj"`
 }
 
 type KeyValue struct {
@@ -119,10 +122,22 @@ func parseRecord(record *Record) (Log, error) {
 		return Log{}, fmt.Errorf("cannot unmarshal user data: %w", err)
 	}
 
+	m := ud.Message
+
+	// If Message is nil maybe we have message_obj
+	if m == nil {
+		m = ud.MessageObj.Message
+	}
+
+	// If no luck lets give whole JSON string instead
+	if m == nil {
+		m = record.Data
+	}
+
 	log := Log{
 		Time:     t,
 		Severity: severity,
-		Message:  fmt.Sprintf("%v", ud.Message),
+		Message:  fmt.Sprintf("%v", m),
 	}
 
 	return log, nil
