@@ -46,7 +46,7 @@ type Log struct {
 type UserData struct {
 	Message    any `json:"message"` // could be float/int or string
 	MessageObj struct {
-		Message any `json:"msg"` // just in case pretend that it can be anything see above ...
+		Message any `json:"msg"` // just in case pretend that it can be anything, see above ...
 	} `json:"message_obj"`
 }
 
