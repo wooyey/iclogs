@@ -37,10 +37,16 @@ type QuerySpec struct {
 	EndDate   time.Time     `json:"end_date"`
 }
 
+type KeyValue struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
 type Log struct {
 	Time     time.Time
 	Severity string
 	Message  string
+	JSON     bool // true when Message is a JSON string
+	Labels   []string
 }
 
 type UserData struct {
@@ -48,11 +54,6 @@ type UserData struct {
 	MessageObj struct {
 		Message any `json:"msg"` // just in case pretend that it can be anything, see above ...
 	} `json:"message_obj"`
-}
-
-type KeyValue struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
 }
 
 type Record struct {
@@ -137,10 +138,17 @@ func parseRecord(record *Record) (Log, error) {
 		m = record.Data
 	}
 
+	labels := make([]string, len(record.Labels))
+	for i, label := range record.Labels {
+		labels[i] = fmt.Sprintf("%s:\"%s\"", label.Key, label.Value)
+	}
+
 	log := Log{
 		Time:     t,
 		Severity: severity,
 		Message:  fmt.Sprintf("%v", m),
+		JSON:     m == record.Data,
+		Labels:   labels,
 	}
 
 	return log, nil

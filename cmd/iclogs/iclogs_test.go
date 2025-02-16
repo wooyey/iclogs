@@ -131,12 +131,20 @@ func TestPrintUsage(t *testing.T) {
         Authorization Endpoint URL. (default https://iam.cloud.ibm.com)
   -f, --from 2006-01-02T15:04
         Start time for log search in format 2006-01-02T15:04.
+  -j, --show-json
+        Show JSON records.
   -k, --key LOG_API_KEY
         API Key to use. Overrides LOG_API_KEY environment variable.
   -l, --logs-url LOGS_ENDPOINT
         URL of IBM Cloud Log Endpoint. Overrides LOGS_ENDPOINT environment variable.
   -r, --range duration
         Relative time for log search, from now (or from end time if specified). (default 1h0m0s)
+  --show-labels
+        Show record labels.
+  --show-severity
+        Show record severity.
+  --show-timestamp
+        Show record timestamp.
   -t, --to 2006-01-02T15:04
         End time for log search in range format 2006-01-02T15:04.
   --version

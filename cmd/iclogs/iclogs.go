@@ -65,6 +65,10 @@ type CmdArgs struct {
 	EndTime   timestamp
 	Query     string
 	Version   bool
+	JSON      bool
+	Labels    bool
+	Severity  bool
+	Timestamp bool
 }
 
 func getEnvArgs(args *CmdArgs) {
@@ -190,6 +194,10 @@ func initParser(args *CmdArgs) {
 	addFlagsVar(&args.StartTime, []string{"from", "f"}, "Start time for log search in format `"+timeFormat+"`.", nil)
 	addFlagsVar(&args.EndTime, []string{"to", "t"}, "End time for log search in range format `"+timeFormat+"`.", nil)
 	addFlagsVar(&args.Version, []string{"version"}, "Show binary version.", false)
+	addFlagsVar(&args.JSON, []string{"j", "show-json"}, "Show JSON records.", false)
+	addFlagsVar(&args.Labels, []string{"show-labels"}, "Show record labels.", false)
+	addFlagsVar(&args.Severity, []string{"show-severity"}, "Show record severity.", false)
+	addFlagsVar(&args.Timestamp, []string{"show-timestamp"}, "Show record timestamp.", false)
 }
 
 // Parse command line args
@@ -282,6 +290,23 @@ func main() {
 	}
 
 	for _, line := range l {
+		// Don't print JSON lines by default
+		if line.JSON && !args.JSON {
+			continue
+		}
+
+		if args.Timestamp {
+			fmt.Printf("%s: ", line.Time)
+		}
+
+		if args.Severity {
+			fmt.Printf("[%s] ", line.Severity)
+		}
+
+		if args.Labels {
+			fmt.Printf("<%s> ", strings.Join(line.Labels, ", "))
+		}
+
 		fmt.Println(line.Message)
 	}
 
