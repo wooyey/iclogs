@@ -25,6 +25,14 @@ const (
 
 const iamURL = "https://iam.cloud.ibm.com"
 
+// Possible errors list for easier testing later on
+const (
+	errorMissingURL    = "you need to provide IBM Cloud Logs endpoint URL"
+	errorMissingAPIKey = "you need to provide API key"
+	errorMissingQuery  = "you need to provide logs query string"
+)
+
+// Will be set in compile time
 var version string
 
 func parseTime(t string) (time.Time, error) {
@@ -171,6 +179,7 @@ func printUsage(w io.Writer) {
 
 }
 
+// Configure command line arguments parsing
 func initParser(args *CmdArgs) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
@@ -183,6 +192,7 @@ func initParser(args *CmdArgs) {
 	addFlagsVar(&args.Version, []string{"version"}, "Show binary version.", false)
 }
 
+// Parse command line args
 func parseArgs() CmdArgs {
 
 	// Re-init FlagSet to avoid unit tests dependency
@@ -204,8 +214,27 @@ func parseArgs() CmdArgs {
 	return args
 }
 
+// Simple produce version string
 func getVersion() string {
 	return fmt.Sprintf("iclogs version %s", version)
+}
+
+// Validate if CmdArgs has proper values
+func validateArgs(args *CmdArgs) error {
+
+	if args.APIKey == "" {
+		return errors.New(errorMissingAPIKey)
+	}
+
+	if args.LogsURL == "" {
+		return errors.New(errorMissingURL)
+	}
+
+	if args.Query == "" {
+		return errors.New(errorMissingQuery)
+	}
+
+	return nil
 }
 
 func main() {
@@ -218,16 +247,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	if args.Query == "" {
-		log.Fatal("You need to provide query string. Use `Lucene` syntax.")
-	}
-
-	if args.APIKey == "" {
-		log.Fatal("You need to provide API Key.")
-	}
-
-	if args.LogsURL == "" {
-		log.Fatal("You need to provide IBM Cloud Logs endpoint URL.")
+	if err := validateArgs(&args); err != nil {
+		log.Fatalf("Error in parsing arguments: %v", err)
 	}
 
 	token, err := auth.GetToken(args.AuthURL, args.APIKey)

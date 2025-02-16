@@ -8,6 +8,22 @@ import (
 	"time"
 )
 
+func errorContains(err error, want string) bool {
+	if err == nil {
+		return want == ""
+	}
+	if want == "" {
+		return false
+	}
+	return strings.Contains(err.Error(), want)
+}
+
+func checkResult[T comparable](got *T, want *T, t *testing.T) {
+	if *got != *want {
+		t.Errorf("\nGot:\t%+v\nWant:\t%+v", *got, *want)
+	}
+}
+
 func TestParseArgs(t *testing.T) {
 
 	testCases := []struct {
@@ -94,9 +110,7 @@ func TestParseArgs(t *testing.T) {
 			}()
 
 			got := parseArgs()
-			if got != tt.want {
-				t.Errorf("\nGot:\t%+v\nWant:\t%+v", got, tt.want)
-			}
+			checkResult(&got, &tt.want, t)
 		})
 	}
 
@@ -129,9 +143,7 @@ func TestPrintUsage(t *testing.T) {
         Show binary version.
 `
 
-	if got != want {
-		t.Errorf("\nGot:\t%q\nWant:\t%q", got, want)
-	}
+	checkResult(&got, &want, t)
 
 }
 
@@ -141,7 +153,45 @@ func TestGetVersion(t *testing.T) {
 	got := getVersion()
 	want := "iclogs version v1.0.0"
 
-	if got != want {
-		t.Errorf("\nGot:\t'%s'\nWant:\t'%s'", got, want)
+	checkResult(&got, &want, t)
+}
+
+func TestValidateArgs(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input CmdArgs
+		want  string
+	}{
+		{
+			name:  "AllOk",
+			input: CmdArgs{APIKey: "api_key", LogsURL: "url", Query: "some query"},
+			want:  "",
+		},
+		{
+			name:  "MissingAPIKey",
+			input: CmdArgs{LogsURL: "url", Query: "some query"},
+			want:  errorMissingAPIKey,
+		},
+		{
+			name:  "MissingURL",
+			input: CmdArgs{APIKey: "api_key", Query: "some query"},
+			want:  errorMissingURL,
+		},
+		{
+			name:  "MissingQuery",
+			input: CmdArgs{APIKey: "api_key", LogsURL: "url"},
+			want:  errorMissingQuery,
+		},
 	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validateArgs(&tt.input)
+
+			if !errorContains(got, tt.want) {
+				t.Errorf("\nGot:\t%+v\nWant:\t%+v", got, tt.want)
+			}
+		})
+	}
+
 }

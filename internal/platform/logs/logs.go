@@ -76,6 +76,8 @@ var GetQueryURL = func(endpoint string) (string, error) {
 	return url.JoinPath(endpoint, queryPath)
 }
 
+var QueryTimeout = time.Duration(3) * time.Minute // HTTP query timeout - default 3 minutes
+
 func structToMap(data any, m *map[string]any) {
 	fields := reflect.VisibleFields(reflect.TypeOf(data))
 	values := reflect.ValueOf(data)
@@ -107,6 +109,7 @@ func parseRecord(record *Record) (Log, error) {
 	if err != nil {
 		return Log{}, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
+
 	severity, err := getValue(record.Metadata, severityField)
 	if err != nil {
 		return Log{}, fmt.Errorf("cannot parse severity: %w", err)
@@ -213,7 +216,7 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 		return nil, fmt.Errorf("cannot create query URL: %w", err)
 	}
 
-	c := http.Client{Timeout: time.Duration(3) * time.Minute}
+	c := http.Client{Timeout: QueryTimeout}
 	req, err := http.NewRequest("POST", addr, payload)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create POST request: %w", err)
