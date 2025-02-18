@@ -27,20 +27,30 @@ Of course you can override this values with CLI options.
 ### Usage message
 
 ```
-Usage of ./iclogs: [options] <lucene query>
+Usage of iclogs: [options] <lucene query>
 
   -a, --auth-url string
         Authorization Endpoint URL. (default https://iam.cloud.ibm.com)
   -f, --from 2006-01-02T15:04
         Start time for log search in format 2006-01-02T15:04.
+  -j, --show-json
+        Show record as JSON.
   -k, --key LOG_API_KEY
         API Key to use. Overrides LOG_API_KEY environment variable.
   -l, --logs-url LOGS_ENDPOINT
         URL of IBM Cloud Log Endpoint. Overrides LOGS_ENDPOINT environment variable.
   -r, --range duration
         Relative time for log search, from now (or from end time if specified). (default 1h0m0s)
+  --show-labels
+        Show record labels.
+  --show-severity
+        Show record severity.
+  --show-timestamp
+        Show record timestamp.
   -t, --to 2006-01-02T15:04
         End time for log search in range format 2006-01-02T15:04.
+  --version
+        Show binary version.
 ```
 
 ### Example queries
@@ -95,12 +105,13 @@ $DIR/iclogs $*
 Create a `.env` file with references to your [1Password](https://1password.com) vault, ie.:
 
 ```env
-LOGS_API_KEY=op://myvault/logs/credential
-LOGS_ENDPOINT=op://myvault/logs/url
+LOGS_API_KEY=op://${NAME}/logs/credential
+LOGS_ENDPOINT=op://${NAME}/logs/url
 ```
 
-Then run `iclogs` with `op run` command:
+Where `${NAME}` is environmental variable with vault name.
+Then run `iclogs` with `op run` command, like this:
 
 ```bash
-op run --env-file="./.env" -- ./iclogs -r 3h 'kubernetes.pod_name:name-of-the-pod-with-some-random-uuid*'
+NAME="my_site" op run --env-file="./.env" -- ./iclogs 'kubernetes.pod_name:name-of-the-pod-with-some-random-uuid*'
 ```

@@ -152,26 +152,59 @@ func mockServer(response string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+var expectedLabels = []string{
+	"applicationname:\"some-observe\"",
+	"subsystemname:\"some-agent\"",
+	"computername:\"\"",
+	"threadid:\"\"",
+	"ipaddress:\"\"",
+}
+
 var expectedLogs = []Log{
 	{
 		Time:     time.Date(2025, 1, 11, 18, 52, 21, 26304000, time.Local),
 		Severity: "Debug",
 		Message:  "2025-01-11 18:52:23.025, 347267.347747, Debug, Example message first",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message":"2025-01-11 18:52:23.025, 347267.347747, Debug, Example message first","file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
 	},
 	{
 		Time:     time.Date(2025, 1, 11, 18, 52, 21, 26360000, time.Local),
 		Severity: "Info",
 		Message:  "2025-01-11 18:52:23.026, 347267.347747, Information, second message",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message":"2025-01-11 18:52:23.026, 347267.347747, Information, second message","file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
 	},
 	{
 		Time:     time.Date(2025, 1, 11, 18, 52, 23, 26304000, time.Local),
 		Severity: "Info",
 		Message:  "2025-01-11 18:52:23.025, 347267.347747, Information, Example message",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message":"2025-01-11 18:52:23.025, 347267.347747, Information, Example message","file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
 	},
 	{
 		Time:     time.Date(2025, 1, 11, 18, 52, 23, 26360000, time.Local),
 		Severity: "Info",
 		Message:  "2025-01-11 18:52:23.026, 347267.347747, Information, Next message",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message":"2025-01-11 18:52:23.026, 347267.347747, Information, Next message","file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
+	},
+}
+
+var expectedMessageObjectLogs = []Log{
+	{
+		Time:     time.Date(2025, 1, 11, 18, 52, 23, 26304000, time.Local),
+		Severity: "Info",
+		Message:  "2025-01-11 18:52:23.025, 347267.347747, Information, Example message",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message_obj":{"msg":"2025-01-11 18:52:23.025, 347267.347747, Information, Example message","level":"debug","ts":"2025-01-01T10:44:00.082Z","caller":"runtime/runtime.go:83"},"file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
+	},
+	{
+		Time:     time.Date(2025, 1, 11, 18, 52, 23, 26360000, time.Local),
+		Severity: "Info",
+		Message:  "2025-01-11 18:52:23.026, 347267.347747, Information, Next message",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message":"2025-01-11 18:52:23.026, 347267.347747, Information, Next message","file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
 	},
 }
 
@@ -179,12 +212,16 @@ var expectedAnyLogs = []Log{
 	{
 		Time:     time.Date(2025, 1, 11, 18, 52, 23, 26304000, time.Local),
 		Severity: "Info",
-		Message:  `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","some_obj":{"msg":"2025-01-11 18:52:23.025, 347267.347747, Information, Example message","level":"debug","ts":"2025-01-01T10:44:00.082Z","caller":"runtime/runtime.go:83"},"file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Message:  "",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","some_obj":{"msg":"2025-01-11 18:52:23.025, 347267.347747, Information, Example message","level":"debug","ts":"2025-01-01T10:44:00.082Z","caller":"runtime/runtime.go:83"},"file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
 	},
 	{
 		Time:     time.Date(2025, 1, 11, 18, 52, 23, 26360000, time.Local),
 		Severity: "Info",
 		Message:  "2025-01-11 18:52:23.026, 347267.347747, Information, Next message",
+		UserData: `{"node_name":"10.10.10.10","kubernetes":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2024-03-15T11:44:11+05:30","kubernetes.io/config.seen":"2025-01-06T08:44:29.371412369Z","kubernetes.io/config.source":"api"},"container_hash":"url.com/ext/some/agent@sha256:7594347727a76fab1b6759575d84389ac1788bff6782046b330c730d67db790c","container_image":"url.com/ext/some/agent:latest","container_name":"some-agent","docker_id":"7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7","host":"10.10.10.10","labels":{"app":"some-agent","controller-revision-hash":"f69c8df74","pod-template-generation":"12"},"namespace_name":"some-observe","pod_id":"3ba098ee-cc88-4cb7-b986-f61e182b6936","pod_name":"some-agent-c7gz7"},"tag":"kube.var.log.containers.some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log","meta":{"cluster_name":"wml-core-dallas-yp-qa"},"stream":"stdout","logtag":"F","message":"2025-01-11 18:52:23.026, 347267.347747, Information, Next message","file":"/var/log/containers/some-agent-c7gz7_some-observe_some-agent-7ca9add76b8a725f0da735a948cb133965de0eb36ac31d6252060eaaaabb0fb7.log"}`,
+		Labels:   expectedLabels,
 	},
 }
 
@@ -203,7 +240,7 @@ func TestQueryLogs(t *testing.T) {
 		{name: "NoLogs", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respNoLogs, want: []Log{}, err: nil},
 		{name: "OnlyWarnings", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respWarnings, want: []Log{}, err: nil},
 		{name: "LongLine", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respLongLine, want: expectedLogs, err: nil},
-		{name: "MessageObject", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respMessageObject, want: expectedLogs[2:4], err: nil},
+		{name: "MessageObject", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respMessageObject, want: expectedMessageObjectLogs, err: nil},
 		{name: "AnyData", token: "Good_Token", query: "Good Query", spec: QuerySpec{Syntax: syntax.Lucene}, response: respAnyData, want: expectedAnyLogs, err: nil},
 	}
 

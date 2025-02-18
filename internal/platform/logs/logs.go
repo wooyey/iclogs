@@ -37,10 +37,16 @@ type QuerySpec struct {
 	EndDate   time.Time     `json:"end_date"`
 }
 
+type KeyValue struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
 type Log struct {
 	Time     time.Time
 	Severity string
 	Message  string
+	UserData string // RAW User Data JSON string
+	Labels   []string
 }
 
 type UserData struct {
@@ -48,11 +54,6 @@ type UserData struct {
 	MessageObj struct {
 		Message any `json:"msg"` // just in case pretend that it can be anything, see above ...
 	} `json:"message_obj"`
-}
-
-type KeyValue struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
 }
 
 type Record struct {
@@ -75,6 +76,8 @@ type Query struct {
 var GetQueryURL = func(endpoint string) (string, error) {
 	return url.JoinPath(endpoint, queryPath)
 }
+
+var QueryTimeout = time.Duration(3) * time.Minute // HTTP query timeout - default 3 minutes
 
 func structToMap(data any, m *map[string]any) {
 	fields := reflect.VisibleFields(reflect.TypeOf(data))
@@ -107,6 +110,7 @@ func parseRecord(record *Record) (Log, error) {
 	if err != nil {
 		return Log{}, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
+
 	severity, err := getValue(record.Metadata, severityField)
 	if err != nil {
 		return Log{}, fmt.Errorf("cannot parse severity: %w", err)
@@ -129,15 +133,22 @@ func parseRecord(record *Record) (Log, error) {
 		m = ud.MessageObj.Message
 	}
 
-	// If no luck lets give whole JSON string instead
+	// If no luck lets have it as an empty string
 	if m == nil {
-		m = record.Data
+		m = ""
+	}
+
+	labels := make([]string, len(record.Labels))
+	for i, label := range record.Labels {
+		labels[i] = fmt.Sprintf("%s:\"%s\"", label.Key, label.Value)
 	}
 
 	log := Log{
 		Time:     t,
 		Severity: severity,
 		Message:  fmt.Sprintf("%v", m),
+		UserData: record.Data,
+		Labels:   labels,
 	}
 
 	return log, nil
@@ -213,7 +224,7 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 		return nil, fmt.Errorf("cannot create query URL: %w", err)
 	}
 
-	c := http.Client{Timeout: time.Duration(3) * time.Minute}
+	c := http.Client{Timeout: QueryTimeout}
 	req, err := http.NewRequest("POST", addr, payload)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create POST request: %w", err)
