@@ -34,7 +34,7 @@ Usage of iclogs: [options] <lucene query>
   -f, --from 2006-01-02T15:04
         Start time for log search in format 2006-01-02T15:04.
   -j, --show-json
-        Show JSON records.
+        Show record as JSON.
   -k, --key LOG_API_KEY
         API Key to use. Overrides LOG_API_KEY environment variable.
   -l, --logs-url LOGS_ENDPOINT
