@@ -45,7 +45,7 @@ type Log struct {
 	Time     time.Time
 	Severity string
 	Message  string
-	JSON     bool // true when Message is a JSON string
+	UserData string // RAW User Data JSON string
 	Labels   []string
 }
 
@@ -133,9 +133,9 @@ func parseRecord(record *Record) (Log, error) {
 		m = ud.MessageObj.Message
 	}
 
-	// If no luck lets give whole JSON string instead
+	// If no luck lets have it as an empty string
 	if m == nil {
-		m = record.Data
+		m = ""
 	}
 
 	labels := make([]string, len(record.Labels))
@@ -147,7 +147,7 @@ func parseRecord(record *Record) (Log, error) {
 		Time:     t,
 		Severity: severity,
 		Message:  fmt.Sprintf("%v", m),
-		JSON:     m == record.Data,
+		UserData: record.Data,
 		Labels:   labels,
 	}
 

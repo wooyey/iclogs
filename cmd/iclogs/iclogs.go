@@ -194,7 +194,7 @@ func initParser(args *CmdArgs) {
 	addFlagsVar(&args.StartTime, []string{"from", "f"}, "Start time for log search in format `"+timeFormat+"`.", nil)
 	addFlagsVar(&args.EndTime, []string{"to", "t"}, "End time for log search in range format `"+timeFormat+"`.", nil)
 	addFlagsVar(&args.Version, []string{"version"}, "Show binary version.", false)
-	addFlagsVar(&args.JSON, []string{"j", "show-json"}, "Show JSON records.", false)
+	addFlagsVar(&args.JSON, []string{"j", "show-json"}, "Show record as JSON.", false)
 	addFlagsVar(&args.Labels, []string{"show-labels"}, "Show record labels.", false)
 	addFlagsVar(&args.Severity, []string{"show-severity"}, "Show record severity.", false)
 	addFlagsVar(&args.Timestamp, []string{"show-timestamp"}, "Show record timestamp.", false)
@@ -290,11 +290,6 @@ func main() {
 	}
 
 	for _, line := range l {
-		// Don't print JSON lines by default
-		if line.JSON && !args.JSON {
-			continue
-		}
-
 		if args.Timestamp {
 			fmt.Printf("%s: ", line.Time)
 		}
@@ -307,7 +302,11 @@ func main() {
 			fmt.Printf("<%s> ", strings.Join(line.Labels, ", "))
 		}
 
-		fmt.Println(line.Message)
+		if args.JSON {
+			fmt.Println(line.UserData)
+		} else {
+			fmt.Println(line.Message)
+		}
 	}
 
 }
