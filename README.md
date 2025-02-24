@@ -1,5 +1,7 @@
 # iclogs
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/wooyey/iclogs)](https://goreportcard.com/report/github.com/wooyey/iclogs)
+
 IBM Cloud Logs CLI
 
 It's a small project to learn Go Lang in hard but useful way.
