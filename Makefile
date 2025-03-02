@@ -14,33 +14,25 @@ confirm:
 no-dirty:
 	@test -z "$(shell git status --porcelain)"
 
-
 ##@ Quality control
 
 .PHONY: audit
 audit: test ## Run quality control checks.
-	go mod tidy -diff
-	go mod verify
-	test -z "$(shell gofmt -l .)"
-	go vet ./...
-	go run honnef.co/go/tools/cmd/staticcheck@latest -checks=all ./...
-	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	scripts/audit.sh .
 
 .PHONY: test
 test: ## Run all tests.
-	go test -v -race -buildvcs ./...
+	scripts/test.sh .
 
 .PHONY: test/cover
 test/cover: ## Run all tests and display coverage.
-	go test -v -race -buildvcs -coverprofile=/tmp/coverage.out ./...
-	go tool cover -html=/tmp/coverage.out
+	scripts/test_cover.sh .
 
 ##@ Development
 
 .PHONY: tidy
 tidy: ## Tidy modfiles and format .go files
-	go mod tidy -v
-	go fmt ./...
+	scripts/tidy.sh .
 
 .PHONY: build
 build: ## Build the application.
@@ -66,6 +58,4 @@ push: confirm audit no-dirty ## Push changes to remote Git repo.
 
 .PHONY: build/production
 build/production: no-dirty ## Build production binary.
-	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o ${binary_name}.darwin.arm64 -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
-	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o ${binary_name}.darwin.amd64 -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o ${binary_name}.linux.amd64 -ldflags "-X main.version=${git_info} -w -s" ${main_package_path}
+	scripts/build_production.sh ${binary_name} ${git_info} ${main_package_path}
