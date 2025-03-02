@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tidy mod files
+# Build production binaries
 
 SCRIPT_PATH=$(dirname "$(realpath "$0")")
 EXPECTED_PARAMS=3
@@ -14,6 +14,6 @@ MAIN_PATH=${3}
 ARCHITECTURES=( "darwin:arm64" "darwin:amd64" "linux:amd64" )
 
 for A in ${ARCHITECTURES[@]}; do
-    IFS=: read -r GOOS GOARCH <<< ${A}
-	run CGO_ENABLED=1 GOOS=${GOOS} GOARCH=${GOARCH} go build -o ${NAME}.darwin.arm64 -ldflags \"-X main.version=${VERSION} -w -s\" ${MAIN_PATH}
+    IFS=: read -r OS ARCH <<< ${A}
+	run CGO_ENABLED=1 GOOS=${OS} GOARCH=${ARCH} go build -o ${NAME}.${OS}.${ARCH} -ldflags \"-X main.version=${VERSION} -w -s\" ${MAIN_PATH}
 done
