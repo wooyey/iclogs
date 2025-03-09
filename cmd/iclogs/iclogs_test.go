@@ -6,21 +6,25 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wooyey/iclogs/internal/platform/logs"
 )
 
-func errorContains(err error, want string) bool {
-	if err == nil {
-		return want == ""
+func assert[T comparable](t testing.TB, got T, want T) {
+	t.Helper()
+	if got != want {
+		t.Errorf("\nGot:\t%+v\nWant:\t%+v", got, want)
 	}
-	if want == "" {
-		return false
-	}
-	return strings.Contains(err.Error(), want)
 }
 
-func checkResult[T comparable](got *T, want *T, t *testing.T) {
-	if *got != *want {
-		t.Errorf("\nGot:\t%+v\nWant:\t%+v", *got, *want)
+func assertError(t testing.TB, got, want error) {
+	t.Helper()
+	if want == nil && got != nil {
+		t.Fatalf("got an error but didn't want one: '%+v'", got)
+	}
+
+	if want != got {
+		t.Errorf("\nGot:\t%+v\nWant:\t%s", got, want)
 	}
 }
 
@@ -34,7 +38,7 @@ func TestParseArgs(t *testing.T) {
 	}{
 		{
 			name:  "LongOptions",
-			input: "./iclogs --key ApiKey --from 2024-03-12T12:00 --to 2024-03-12T13:00 --range 30m --logs-url https://logs.endpoint.cloud.ibm.com --auth-url https://iam.different.cloud.ibm.com lucene query",
+			input: "./iclogs --key ApiKey --from 2024-03-12T12:00 --to 2024-03-12T13:00 --range 30m --logs-url https://logs.endpoint.cloud.ibm.com --auth-url https://iam.different.cloud.ibm.com --message-fields another,keys lucene query",
 			envs:  map[string]string{},
 			want: CmdArgs{
 				APIKey:    "ApiKey",
@@ -44,11 +48,12 @@ func TestParseArgs(t *testing.T) {
 				StartTime: timestamp(time.Date(2024, 3, 12, 12, 0, 0, 0, time.Local)),
 				EndTime:   timestamp(time.Date(2024, 3, 12, 13, 0, 0, 0, time.Local)),
 				Query:     "lucene query",
+				KeyNames:  "another,keys",
 			},
 		},
 		{
 			name:  "ShortOptions",
-			input: "./iclogs -k ApiKey -f 2024-03-12T12:00 -t 2024-03-12T13:00 -r 30m -l https://logs.endpoint.cloud.ibm.com -a https://iam.different.cloud.ibm.com lucene query",
+			input: "./iclogs -k ApiKey -f 2024-03-12T12:00 -t 2024-03-12T13:00 -r 30m -l https://logs.endpoint.cloud.ibm.com -a https://iam.different.cloud.ibm.com -m some,keys lucene query",
 			envs:  map[string]string{},
 			want: CmdArgs{
 				APIKey:    "ApiKey",
@@ -58,6 +63,7 @@ func TestParseArgs(t *testing.T) {
 				StartTime: timestamp(time.Date(2024, 3, 12, 12, 0, 0, 0, time.Local)),
 				EndTime:   timestamp(time.Date(2024, 3, 12, 13, 0, 0, 0, time.Local)),
 				Query:     "lucene query",
+				KeyNames:  "some,keys",
 			},
 		},
 		{
@@ -66,8 +72,9 @@ func TestParseArgs(t *testing.T) {
 			envs:  map[string]string{},
 			want: CmdArgs{
 				TimeRange: defaultTimeRange,
-				AuthURL:   iamURL,
+				AuthURL:   defaultIAMURL,
 				Query:     "lucene query",
+				KeyNames:  defaultKeyNames,
 			},
 		},
 		{
@@ -76,10 +83,11 @@ func TestParseArgs(t *testing.T) {
 			envs:  map[string]string{"LOGS_API_KEY": "api_key", "LOGS_ENDPOINT": "https://logs.cloud.ibm.com"},
 			want: CmdArgs{
 				TimeRange: defaultTimeRange,
-				AuthURL:   iamURL,
+				AuthURL:   defaultIAMURL,
 				Query:     "lucene query",
 				LogsURL:   "https://logs.cloud.ibm.com",
 				APIKey:    "api_key",
+				KeyNames:  defaultKeyNames,
 			},
 		},
 		{
@@ -88,10 +96,11 @@ func TestParseArgs(t *testing.T) {
 			envs:  map[string]string{"LOGS_API_KEY": "api_key", "LOGS_ENDPOINT": "https://logs.cloud.ibm.com"},
 			want: CmdArgs{
 				TimeRange: defaultTimeRange,
-				AuthURL:   iamURL,
+				AuthURL:   defaultIAMURL,
 				Query:     "lucene query",
 				LogsURL:   "https://logs.cloud.ibm.com",
 				APIKey:    "some_key",
+				KeyNames:  defaultKeyNames,
 			},
 		},
 	}
@@ -110,7 +119,7 @@ func TestParseArgs(t *testing.T) {
 			}()
 
 			got := parseArgs()
-			checkResult(&got, &tt.want, t)
+			assert(t, got, tt.want)
 		})
 	}
 
@@ -137,6 +146,8 @@ func TestPrintUsage(t *testing.T) {
         API Key to use. Overrides LOG_API_KEY environment variable.
   -l, --logs-url LOGS_ENDPOINT
         URL of IBM Cloud Log Endpoint. Overrides LOGS_ENDPOINT environment variable.
+  -m, --message-fields string
+        Comma separated message field names. (default message,message_obj.msg,log)
   -r, --range duration
         Relative time for log search, from now (or from end time if specified). (default 1h0m0s)
   --show-labels
@@ -151,8 +162,7 @@ func TestPrintUsage(t *testing.T) {
         Show binary version.
 `
 
-	checkResult(&got, &want, t)
-
+	assert(t, got, want)
 }
 
 func TestGetVersion(t *testing.T) {
@@ -161,34 +171,34 @@ func TestGetVersion(t *testing.T) {
 	got := getVersion()
 	want := "iclogs version v1.0.0"
 
-	checkResult(&got, &want, t)
+	assert(t, got, want)
 }
 
 func TestValidateArgs(t *testing.T) {
 	testCases := []struct {
 		name  string
 		input CmdArgs
-		want  string
+		want  error
 	}{
 		{
 			name:  "AllOk",
 			input: CmdArgs{APIKey: "api_key", LogsURL: "url", Query: "some query"},
-			want:  "",
+			want:  nil,
 		},
 		{
 			name:  "MissingAPIKey",
 			input: CmdArgs{LogsURL: "url", Query: "some query"},
-			want:  errorMissingAPIKey,
+			want:  errMissingAPIKey,
 		},
 		{
 			name:  "MissingURL",
 			input: CmdArgs{APIKey: "api_key", Query: "some query"},
-			want:  errorMissingURL,
+			want:  errMissingURL,
 		},
 		{
 			name:  "MissingQuery",
 			input: CmdArgs{APIKey: "api_key", LogsURL: "url"},
-			want:  errorMissingQuery,
+			want:  errMissingQuery,
 		},
 	}
 
@@ -196,9 +206,60 @@ func TestValidateArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := validateArgs(&tt.input)
 
-			if !errorContains(got, tt.want) {
-				t.Errorf("\nGot:\t%+v\nWant:\t%+v", got, tt.want)
-			}
+			assertError(t, got, tt.want)
+		})
+	}
+
+}
+
+func TestPrintLogs(t *testing.T) {
+	logs := []logs.Log{
+		{
+			Time:     time.Date(2025, 1, 11, 18, 52, 21, 26304000, time.Local),
+			Severity: "Debug",
+			UserData: `{"message":"some_message"}`,
+			Labels:   []string{"label:\"value-of-label\""},
+		},
+	}
+
+	testCases := []struct {
+		name string
+		args CmdArgs
+		want string
+	}{
+		{
+			name: "Default",
+			args: CmdArgs{KeyNames: defaultKeyNames},
+			want: "some_message\n",
+		},
+		{
+			name: "ShowTimestamp",
+			args: CmdArgs{KeyNames: defaultKeyNames, Timestamp: true},
+			want: "2025-01-11 18:52:21.026304 +0100 CET: some_message\n",
+		},
+		{
+			name: "ShowSeverity",
+			args: CmdArgs{KeyNames: defaultKeyNames, Severity: true},
+			want: "[Debug] some_message\n",
+		},
+		{
+			name: "ShowLabels",
+			args: CmdArgs{KeyNames: defaultKeyNames, Labels: true},
+			want: "<label:\"value-of-label\"> some_message\n",
+		},
+		{
+			name: "ShowJSON",
+			args: CmdArgs{KeyNames: defaultKeyNames, JSON: true},
+			want: "{\"message\":\"some_message\"}\n",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			buffer := bytes.Buffer{}
+			printLogs(&buffer, &logs, &tt.args)
+			got := buffer.String()
+			assert(t, got, tt.want)
 		})
 	}
 

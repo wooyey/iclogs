@@ -41,6 +41,8 @@ Usage of iclogs: [options] <lucene query>
         API Key to use. Overrides LOG_API_KEY environment variable.
   -l, --logs-url LOGS_ENDPOINT
         URL of IBM Cloud Log Endpoint. Overrides LOGS_ENDPOINT environment variable.
+  -m, --message-fields string
+        Comma separated message field names. (default message,message_obj.msg,log)
   -r, --range duration
         Relative time for log search, from now (or from end time if specified). (default 1h0m0s)
   --show-labels
