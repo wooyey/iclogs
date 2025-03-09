@@ -235,7 +235,7 @@ func TestPrintLogs(t *testing.T) {
 		{
 			name: "ShowTimestamp",
 			args: CmdArgs{KeyNames: defaultKeyNames, Timestamp: true},
-			want: "2025-01-11 18:52:21.026304 +0100 CET: some_message\n",
+			want: "2025-01-11 18:52:21: some_message\n",
 		},
 		{
 			name: "ShowSeverity",

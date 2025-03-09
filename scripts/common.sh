@@ -21,7 +21,7 @@ function run {
     else
         echo "❌"
         echo "Error details:"
-        echo ${RESULT}
+        echo "${RESULT}"
         exit 2
     fi
 }

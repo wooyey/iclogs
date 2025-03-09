@@ -20,6 +20,7 @@ import (
 
 const (
 	timeFormat       = "2006-01-02T15:04"
+	timeStampFormat  = "2006-01-02 15:04:05"
 	defaultTimeRange = time.Hour
 )
 
@@ -261,7 +262,7 @@ func printLogs(w io.Writer, l *[]logs.Log, args *CmdArgs) {
 
 	for _, line := range *l {
 		if args.Timestamp {
-			fmt.Fprintf(w, "%s: ", line.Time)
+			fmt.Fprintf(w, "%s: ", line.Time.Format(timeStampFormat))
 		}
 
 		if args.Severity {
