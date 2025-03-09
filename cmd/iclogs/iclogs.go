@@ -23,16 +23,19 @@ const (
 	defaultTimeRange = time.Hour
 )
 
-const iamURL = "https://iam.cloud.ibm.com"
+const defaultIAMURL = "https://iam.cloud.ibm.com"
+const defaultKeyNames = "message,message_obj.msg,log"
+const versionString = "iclogs version %s"
 
 // Possible errors list for easier testing later on
-const (
-	errorMissingURL    = "you need to provide IBM Cloud Logs endpoint URL"
-	errorMissingAPIKey = "you need to provide API key"
-	errorMissingQuery  = "you need to provide logs query string"
+var (
+	errMissingURL    = errors.New("you need to provide IBM Cloud Logs endpoint URL")
+	errMissingAPIKey = errors.New("you need to provide API key")
+	errMissingQuery  = errors.New("you need to provide logs query string")
+	errUnknownFlag   = errors.New("unknown type of flag value")
 )
 
-// Will be set in compile time
+// Should be set in compile time
 var version string
 
 func parseTime(t string) (time.Time, error) {
@@ -69,18 +72,23 @@ type CmdArgs struct {
 	Labels    bool
 	Severity  bool
 	Timestamp bool
+	KeyNames  string
 }
 
+// Set CmdArgs structure annotated elements with environment variable values if exists
 func getEnvArgs(args *CmdArgs) {
 
 	t := reflect.TypeOf(*args)
 
 	for i, f := range reflect.VisibleFields(t) {
-		if k := f.Tag.Get("env"); k != "" {
-			if fv := reflect.ValueOf(args).Elem().Field(i); fv.String() == "" {
-				v := os.Getenv(k)
-				fv.SetString(v)
-			}
+		k := f.Tag.Get("env")
+		if k == "" {
+			continue
+		}
+
+		if fv := reflect.ValueOf(args).Elem().Field(i); fv.String() == "" {
+			v := os.Getenv(k)
+			fv.SetString(v)
 		}
 	}
 }
@@ -97,7 +105,7 @@ func addFlagsVar(value interface{}, names []string, usage string, defaultValue i
 		case *bool:
 			flag.BoolVar(v, name, defaultValue.(bool), usage)
 		default:
-			return errors.New("unknown type of flag value")
+			return errUnknownFlag
 		}
 	}
 	return nil
@@ -188,10 +196,11 @@ func initParser(args *CmdArgs) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	addFlagsVar(&args.APIKey, []string{"key", "k"}, "API Key to use. Overrides `LOG_API_KEY` environment variable.", "")
-	addFlagsVar(&args.AuthURL, []string{"auth-url", "a"}, "Authorization Endpoint URL.", iamURL)
+	addFlagsVar(&args.AuthURL, []string{"auth-url", "a"}, "Authorization Endpoint URL.", defaultIAMURL)
 	addFlagsVar(&args.LogsURL, []string{"logs-url", "l"}, "URL of IBM Cloud Log Endpoint. Overrides `LOGS_ENDPOINT` environment variable.", "")
 	addFlagsVar(&args.TimeRange, []string{"range", "r"}, "Relative time for log search, from now (or from end time if specified).", defaultTimeRange)
 	addFlagsVar(&args.StartTime, []string{"from", "f"}, "Start time for log search in format `"+timeFormat+"`.", nil)
+	addFlagsVar(&args.KeyNames, []string{"message-fields", "m"}, "Comma separated message field names.", defaultKeyNames)
 	addFlagsVar(&args.EndTime, []string{"to", "t"}, "End time for log search in range format `"+timeFormat+"`.", nil)
 	addFlagsVar(&args.Version, []string{"version"}, "Show binary version.", false)
 	addFlagsVar(&args.JSON, []string{"j", "show-json"}, "Show record as JSON.", false)
@@ -224,25 +233,55 @@ func parseArgs() CmdArgs {
 
 // Simple produce version string
 func getVersion() string {
-	return fmt.Sprintf("iclogs version %s", version)
+	return fmt.Sprintf(versionString, version)
 }
 
 // Validate if CmdArgs has proper values
 func validateArgs(args *CmdArgs) error {
 
 	if args.APIKey == "" {
-		return errors.New(errorMissingAPIKey)
+		return errMissingAPIKey
 	}
 
 	if args.LogsURL == "" {
-		return errors.New(errorMissingURL)
+		return errMissingURL
 	}
 
 	if args.Query == "" {
-		return errors.New(errorMissingQuery)
+		return errMissingQuery
 	}
 
 	return nil
+}
+
+// Printout log records based on setup in CmdArgs
+func printLogs(w io.Writer, l *[]logs.Log, args *CmdArgs) {
+
+	keyNames := strings.Split(args.KeyNames, ",")
+
+	for _, line := range *l {
+		if args.Timestamp {
+			fmt.Fprintf(w, "%s: ", line.Time)
+		}
+
+		if args.Severity {
+			fmt.Fprintf(w, "[%s] ", line.Severity)
+		}
+
+		if args.Labels {
+			fmt.Fprintf(w, "<%s> ", strings.Join(line.Labels, ", "))
+		}
+
+		if args.JSON {
+			fmt.Fprintln(w, line.UserData)
+			continue
+		}
+
+		msg, err := logs.GetMessage(&line.UserData, &keyNames)
+		if err == nil {
+			fmt.Fprintln(w, msg)
+		}
+	}
 }
 
 func main() {
@@ -289,24 +328,6 @@ func main() {
 		log.Fatalf("Cannot get logs from '%s': %v", args.LogsURL, err)
 	}
 
-	for _, line := range l {
-		if args.Timestamp {
-			fmt.Printf("%s: ", line.Time)
-		}
-
-		if args.Severity {
-			fmt.Printf("[%s] ", line.Severity)
-		}
-
-		if args.Labels {
-			fmt.Printf("<%s> ", strings.Join(line.Labels, ", "))
-		}
-
-		if args.JSON {
-			fmt.Println(line.UserData)
-		} else {
-			fmt.Println(line.Message)
-		}
-	}
+	printLogs(os.Stdout, &l, &args)
 
 }

@@ -44,16 +44,8 @@ type KeyValue struct {
 type Log struct {
 	Time     time.Time
 	Severity string
-	Message  string
 	UserData string // RAW User Data JSON string
 	Labels   []string
-}
-
-type UserData struct {
-	Message    any `json:"message"` // could be float/int or string
-	MessageObj struct {
-		Message any `json:"msg"` // just in case pretend that it can be anything, see above ...
-	} `json:"message_obj"`
 }
 
 type Record struct {
@@ -78,6 +70,8 @@ var GetQueryURL = func(endpoint string) (string, error) {
 }
 
 var QueryTimeout = time.Duration(3) * time.Minute // HTTP query timeout - default 3 minutes
+
+var MessageKeywords = [...]string{"message", "message_obj.msg", "log"} // Potential message fields
 
 func structToMap(data any, m *map[string]any) {
 	fields := reflect.VisibleFields(reflect.TypeOf(data))
@@ -104,6 +98,47 @@ func getValue(kv []KeyValue, key string) (string, error) {
 	return "", fmt.Errorf("cannot find value for key: '%s'", key)
 }
 
+func traverseMap(m map[string]any, keys []string) (string, error) {
+
+	key := keys[0]
+	v, ok := m[key]
+
+	if !ok {
+		return "", fmt.Errorf("key '%s' was not found in map", key)
+	}
+
+	if len(keys) == 1 {
+		return fmt.Sprintf("%v", v), nil // let's convert always to string
+	}
+
+	return traverseMap(v.(map[string]any), keys[1:])
+
+}
+
+// GetMessage retrieve string from User Data JSON by specifying message key
+func GetMessage(userData *string, keyNames *[]string) (string, error) {
+
+	ud := make(map[string]any) // let's use map as `user_data`` can be really anything ...
+	if err := json.Unmarshal([]byte(*userData), &ud); err != nil {
+		return "", fmt.Errorf("cannot unmarshal user data: %w", err)
+	}
+
+	var (
+		msg string
+		err error
+	)
+
+	for _, k := range *keyNames {
+		keys := strings.Split(k, ".")
+		msg, err = traverseMap(ud, keys)
+		if err == nil {
+			break
+		}
+	}
+
+	return msg, err
+}
+
 func parseRecord(record *Record) (Log, error) {
 
 	timestamp, err := getValue(record.Metadata, timestampField)
@@ -121,23 +156,6 @@ func parseRecord(record *Record) (Log, error) {
 		return Log{}, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
 
-	ud := UserData{}
-	if err := json.Unmarshal([]byte(record.Data), &ud); err != nil {
-		return Log{}, fmt.Errorf("cannot unmarshal user data: %w", err)
-	}
-
-	m := ud.Message
-
-	// If Message is nil maybe we have message_obj
-	if m == nil {
-		m = ud.MessageObj.Message
-	}
-
-	// If no luck lets have it as an empty string
-	if m == nil {
-		m = ""
-	}
-
 	labels := make([]string, len(record.Labels))
 	for i, label := range record.Labels {
 		labels[i] = fmt.Sprintf("%s:\"%s\"", label.Key, label.Value)
@@ -146,7 +164,6 @@ func parseRecord(record *Record) (Log, error) {
 	log := Log{
 		Time:     t,
 		Severity: severity,
-		Message:  fmt.Sprintf("%v", m),
 		UserData: record.Data,
 		Labels:   labels,
 	}
@@ -171,7 +188,6 @@ func parseResponse(response io.Reader) ([]Log, error) {
 		}
 
 		d := line[len(dataPrefix):]
-		// data := make(map[string]any)
 		data := MessageResult{}
 
 		if err := json.Unmarshal([]byte(d), &data); err != nil {
