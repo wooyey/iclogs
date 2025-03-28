@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -48,16 +49,28 @@ type Log struct {
 	Labels   []string
 }
 
+type Result struct {
+	Logs     []Log
+	Warnings []string
+}
+
 type Record struct {
 	Data     string     `json:"user_data"`
 	Metadata []KeyValue `json:"metadata"`
 	Labels   []KeyValue `json:"labels"`
 }
 
+type WarningRecord struct {
+	Compile struct {
+		Message string `json:"warning_message"`
+	} `json:"compile_warning"`
+}
+
 type MessageResult struct {
 	Result struct {
 		Results []Record `json:"results"`
 	} `json:"result"`
+	Warning WarningRecord `json:"warning"`
 }
 
 type Query struct {
@@ -171,9 +184,10 @@ func parseRecord(record *Record) (Log, error) {
 	return log, nil
 }
 
-func parseResponse(response io.Reader) ([]Log, error) {
+func parseResponse(response io.Reader) ([]Log, []string, error) {
 
 	logs := []Log{}
+	var warnings []string
 
 	scanner := bufio.NewScanner(response)
 
@@ -191,33 +205,39 @@ func parseResponse(response io.Reader) ([]Log, error) {
 		data := MessageResult{}
 
 		if err := json.Unmarshal([]byte(d), &data); err != nil {
-			return nil, fmt.Errorf("cannot unmarshal data line payload: %w", err)
+			return nil, nil, fmt.Errorf("cannot unmarshal data line payload: %w", err)
 		}
 
 		for _, r := range data.Result.Results {
 
 			l, err := parseRecord(&r)
 			if err != nil {
-				return nil, fmt.Errorf("cannot parse record from results: %w", err)
+				return nil, nil, fmt.Errorf("cannot parse record from results: %w", err)
 			}
 
 			logs = append(logs, l)
 
 		}
 
+		if m := data.Warning.Compile.Message; m != "" {
+			if !slices.Contains(warnings, m) {
+				warnings = append(warnings, m)
+			}
+		}
+
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Sort logs
 	sort.Slice(logs, func(i, j int) bool { return logs[i].Time.Compare(logs[j].Time) < 0 })
 
-	return logs, nil
+	return logs, warnings, nil
 }
 
-func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
+func QueryLogs(endpoint, token, query string, spec QuerySpec) (Result, error) {
 
 	q := Query{Query: query}
 
@@ -230,20 +250,20 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 
 	j, err := json.Marshal(q)
 	if err != nil {
-		return nil, fmt.Errorf("cannot marshal payload: %w", err)
+		return Result{}, fmt.Errorf("cannot marshal payload: %w", err)
 	}
 
 	payload := bytes.NewBuffer(j)
 
 	addr, err := GetQueryURL(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create query URL: %w", err)
+		return Result{}, fmt.Errorf("cannot create query URL: %w", err)
 	}
 
 	c := http.Client{Timeout: QueryTimeout}
 	req, err := http.NewRequest("POST", addr, payload)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create POST request: %w", err)
+		return Result{}, fmt.Errorf("cannot create POST request: %w", err)
 	}
 
 	req.Header.Add("content-type", "application/json")
@@ -252,7 +272,7 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return nil, fmt.Errorf("cannot POST data: %w", err)
+		return Result{}, fmt.Errorf("cannot POST data: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -260,18 +280,18 @@ func QueryLogs(endpoint, token, query string, spec QuerySpec) ([]Log, error) {
 		body, err := io.ReadAll(resp.Body)
 
 		if err != nil {
-			return nil, fmt.Errorf("cannot read body: %w", err)
+			return Result{}, fmt.Errorf("cannot read body: %w", err)
 		}
 
-		return nil, fmt.Errorf("got HTTP error code: %d, message: '%s'", resp.StatusCode, body)
+		return Result{}, fmt.Errorf("got HTTP error code: %d, message: '%s'", resp.StatusCode, body)
 	}
 
-	logs, err := parseResponse(resp.Body)
+	l, w, err := parseResponse(resp.Body)
 
 	if err != nil {
-		return nil, fmt.Errorf("error when parsing results: %w", err)
+		return Result{}, fmt.Errorf("error when parsing results: %w", err)
 	}
 
-	return logs, nil
+	return Result{Logs: l, Warnings: w}, nil
 
 }

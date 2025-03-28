@@ -1,0 +1,10 @@
+{
+	"errors": [
+		{
+			"code": "bad_request_or_unspecified",
+			"message": "Failed to deserialize JSON"
+		}
+	],
+	"trace": "c37f5a58-8ee9-4c58-ae13-db03409853fa",
+	"status_code": 400
+}

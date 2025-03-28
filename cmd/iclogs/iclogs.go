@@ -285,6 +285,15 @@ func printLogs(w io.Writer, l *[]logs.Log, args *CmdArgs) {
 	}
 }
 
+func printWarnings(w io.Writer, ws []string) {
+
+	fmt.Fprintln(w, "Warnings:")
+	for _, l := range ws {
+		fmt.Fprintf(w, "- %s\n", l)
+	}
+
+}
+
 func main() {
 
 	args := parseArgs()
@@ -329,6 +338,8 @@ func main() {
 		log.Fatalf("Cannot get logs from '%s': %v", args.LogsURL, err)
 	}
 
-	printLogs(os.Stdout, &l, &args)
-
+	printLogs(os.Stdout, &l.Logs, &args)
+	if len(l.Warnings) != 0 {
+		printWarnings(os.Stderr, l.Warnings)
+	}
 }
