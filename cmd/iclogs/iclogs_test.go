@@ -264,3 +264,16 @@ func TestPrintLogs(t *testing.T) {
 	}
 
 }
+
+func TestPrintWarnings(t *testing.T) {
+	warnings := []string{
+		"some warning",
+		"another warning",
+	}
+	want := "Warnings:\n- some warning\n- another warning\n"
+
+	buffer := bytes.Buffer{}
+	printWarnings(&buffer, warnings)
+	got := buffer.String()
+	assert(t, got, want)
+}

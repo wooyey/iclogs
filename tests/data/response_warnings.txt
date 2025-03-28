@@ -1,0 +1,11 @@
+: success
+data: {"query_id":{"query_id":"ee49715e-4337-4c2a-a058-2bc38bcc33ea"}}
+
+: success
+data: {"warning":{"compile_warning":{"warning_message":"keypath does not exist\n'w.e' in line 0 at column 0"}}}
+
+: success
+data: {"warning":{"compile_warning":{"warning_message":"tokens less than 4 bytes or more than 64 bytes in UTF-8 are not indexed and will likely be excluded from the query\n'12' in line 0 at column 22"}}}
+
+: success
+data: {"warning":{"compile_warning":{"warning_message":"tokens less than 4 bytes or more than 64 bytes in UTF-8 are not indexed and will likely be excluded from the query\n'2' in line 0 at column 25"}}}
